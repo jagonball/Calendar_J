@@ -1,0 +1,1595 @@
+<!doctype html>
+<html lang="zh-Hant-TW">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex, nofollow, noarchive">
+<meta name="referrer" content="no-referrer">
+<meta name="theme-color" content="#F2F4F1" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#12171D" media="(prefers-color-scheme: dark)">
+<title>球賽行事曆</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>⚾</text></svg>">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&display=swap" rel="stylesheet">
+<script>
+  // 在畫面繪製前套用深淺色與上次的配色，避免閃爍
+  const HEX = /^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/;
+  function colorCss(t) {
+    const block = (o) => Object.entries(o || {})
+      .filter(([k, v]) => /^[a-z-]+$/.test(k) && HEX.test(v))
+      .map(([k, v]) => `--${k}: ${v};`).join(' ');
+    const L = block(t && t.light), D = block(t && t.dark);
+    // html:root 的權重高於預設樣式的 :root，深色區塊另外處理
+    return `html:root { ${L} } @media (prefers-color-scheme: dark) { html:root:not([data-theme="light"]) { ${D} } } html:root[data-theme="dark"] { ${D} }`;
+  }
+  try {
+    const t = localStorage.getItem('gamecal.theme');
+    if (t === 'light' || t === 'dark') document.documentElement.dataset.theme = t;
+    const c = localStorage.getItem('gamecal.colors');
+    if (c) document.write('<style id="customColors">' + colorCss(JSON.parse(c)) + '</style>');
+  } catch (e) {}
+</script>
+<style>
+
+:root {
+  --bg: #F2F4F1;
+  --surface: #FFFFFF;
+  --surface-2: #E8ECE7;
+  --ink: #17202A;
+  --muted: #5B6672;
+  --line: #D5DBD4;
+  --accent: #1F5FA8;
+  --accent-ink: #FFFFFF;
+  --want: #A16207;
+  --want-bg: #FBF0D9;
+  --ticket: #1E7A4C;
+  --ticket-bg: #DDF1E5;
+  --busy: #6B7682;
+  --busy-bg: #E6E9EC;
+  --danger: #B42318;
+  --num: "Barlow Condensed", "Arial Narrow", "Roboto Condensed", sans-serif;
+  --text: -apple-system, "PingFang TC", "Noto Sans TC", "Microsoft JhengHei", "Heiti TC", sans-serif;
+  color-scheme: light;
+  box-sizing: border-box;
+  padding-top: env(safe-area-inset-top, 0px);
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #12171D;
+    --surface: #1A2129;
+    --surface-2: #232C36;
+    --ink: #E5E9ED;
+    --muted: #9AA5B1;
+    --line: #2E3843;
+    --accent: #7DB0EA;
+    --accent-ink: #0E1620;
+    --want: #E6B455;
+    --want-bg: #3A2F17;
+    --ticket: #5BCB92;
+    --ticket-bg: #15352A;
+    --busy: #A3ADB8;
+    --busy-bg: #2A323C;
+    --danger: #F97066;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #12171D;
+  --surface: #1A2129;
+  --surface-2: #232C36;
+  --ink: #E5E9ED;
+  --muted: #9AA5B1;
+  --line: #2E3843;
+  --accent: #7DB0EA;
+  --accent-ink: #0E1620;
+  --want: #E6B455;
+  --want-bg: #3A2F17;
+  --ticket: #5BCB92;
+  --ticket-bg: #15352A;
+  --busy: #A3ADB8;
+  --busy-bg: #2A323C;
+  --danger: #F97066;
+  color-scheme: dark;
+}
+*, *::before, *::after { box-sizing: inherit; }
+html { -webkit-text-size-adjust: 100%; }
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--ink);
+  font: 15px/1.6 var(--text);
+}
+button, input, textarea, select { font: inherit; color: inherit; }
+button { cursor: pointer; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+
+/* ── 頁首：月份是整個介面最醒目的元素 ── */
+.top {
+  max-width: 1080px;
+  margin: 0 auto;
+  padding: 14px 16px 6px;
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: end;
+  gap: 8px 12px;
+}
+.month-title {
+  margin: 0;
+  display: flex;
+  align-items: flex-end;
+  gap: 10px;
+  font-weight: 400;
+  line-height: 0.82;
+}
+.month-title .mo {
+  font: 700 clamp(84px, 22vw, 148px)/0.78 var(--num);
+  letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
+}
+.month-title .side { display: grid; gap: 6px; padding-bottom: 4px; }
+.month-title .yr { font: 600 26px/1 var(--num); color: var(--muted); letter-spacing: 0.02em; }
+.month-title .word { font-size: 18px; line-height: 1; font-weight: 600; }
+.nav { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 6px; align-items: center; justify-self: end; padding-bottom: 6px; }
+.icon-btn {
+  min-width: 40px; height: 40px;
+  border: 1px solid var(--line);
+  background: var(--surface);
+  border-radius: 999px;
+  display: inline-grid; place-items: center;
+  padding: 0 12px;
+}
+.icon-btn:hover { border-color: var(--ink); }
+.me-btn { font-weight: 600; max-width: 9.5em; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+.filters {
+  max-width: 1080px; margin: 0 auto;
+  padding: 8px 16px 10px;
+  display: flex; gap: 6px; overflow-x: auto; scrollbar-width: none;
+}
+.filters::-webkit-scrollbar { display: none; }
+.chip {
+  flex: none;
+  display: inline-flex; align-items: center; gap: 6px;
+  border: 1px solid var(--line);
+  background: transparent;
+  border-radius: 999px;
+  padding: 4px 12px 4px 8px;
+  font-size: 13px;
+  color: var(--muted);
+}
+.chip .sw { width: 10px; height: 10px; border-radius: 3px; background: var(--lc); opacity: .35; }
+.chip[aria-pressed="true"] { color: var(--ink); border-color: var(--ink); background: var(--surface); }
+.chip[aria-pressed="true"] .sw { opacity: 1; }
+
+.demo-banner {
+  max-width: 1080px; margin: 0 auto 6px; padding: 8px 16px;
+  font-size: 13px; color: var(--muted);
+}
+.demo-banner strong { color: var(--ink); }
+
+/* ── 版面 ── */
+.layout {
+  max-width: 1080px; margin: 0 auto;
+  padding: 0 16px 48px;
+  display: grid; gap: 20px;
+}
+@media (min-width: 900px) {
+  .layout { grid-template-columns: minmax(0, 1.55fr) minmax(320px, 1fr); align-items: start; }
+  .agenda { position: sticky; top: calc(12px + env(safe-area-inset-top, 0px)); max-height: calc(100vh - 24px); overflow: auto; }
+}
+
+/* ── 月曆 ── */
+.weekdays, .grid { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); }
+.weekdays div {
+  font-size: 12px; color: var(--muted); text-align: center; padding: 4px 0;
+}
+.weekdays div:first-child, .weekdays div:last-child { color: var(--ink); }
+.grid {
+  border-top: 2px solid var(--ink);
+  background: var(--line);
+  gap: 1px;
+  border-bottom: 1px solid var(--line);
+}
+.cell {
+  position: relative;
+  min-height: 74px;
+  background: var(--bg);
+  border: 0;
+  padding: 4px 3px 5px;
+  text-align: left;
+  display: flex; flex-direction: column; gap: 3px;
+  overflow: hidden;
+}
+@media (min-width: 640px) { .cell { min-height: 98px; padding: 6px 5px; } }
+.cell:hover { background: var(--surface); }
+.cell.out { background: var(--bg); opacity: .38; }
+.cell .d { font: 600 17px/1 var(--num); font-variant-numeric: tabular-nums; padding-left: 2px; }
+.cell.today .d {
+  background: var(--ink); color: var(--bg);
+  border-radius: 4px; padding: 2px 4px 1px; align-self: flex-start;
+}
+.cell.sel { background: var(--surface); box-shadow: inset 0 0 0 2px var(--accent); }
+.mk {
+  display: flex; align-items: center; gap: 3px;
+  height: 14px;
+  border-left: 3px solid var(--lc);
+  padding-left: 3px;
+  font-size: 10.5px; line-height: 14px;
+  color: var(--muted);
+  min-width: 0;
+}
+.mk .t { flex: 1; min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.mk .s { flex: none; font-size: 10px; font-weight: 700; }
+.mk .s.want { color: var(--want); }
+.mk .s.ticket { color: var(--ticket); }
+.mk .s.busy { color: var(--busy); }
+.mk.mine-ticket { background: var(--ticket-bg); color: var(--ink); }
+.more, .ev-mk { font-size: 10.5px; color: var(--muted); padding-left: 3px; line-height: 13px; }
+.ev-mk { border-left: 3px dotted var(--ink); padding-left: 3px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: var(--ink); }
+@media (max-width: 639px) {
+  .mk .t { visibility: hidden; }
+  .mk { justify-content: flex-end; }
+  .ev-mk .t { display: none; }
+}
+.legend {
+  display: flex; flex-wrap: wrap; gap: 4px 16px;
+  font-size: 12px; color: var(--muted);
+  padding: 8px 2px 0;
+}
+.legend b { font-weight: 700; margin-right: 3px; }
+.legend .want { color: var(--want); }
+.legend .ticket { color: var(--ticket); }
+.legend .busy { color: var(--busy); }
+
+/* ── 當日行程 ── */
+.agenda h2 {
+  margin: 0 0 10px;
+  display: flex; align-items: baseline; gap: 10px;
+  font-size: 18px;
+}
+.agenda h2 .n { font: 700 34px/1 var(--num); }
+.agenda h2 .wd { font-size: 14px; color: var(--muted); font-weight: 500; }
+.sec-title { font-size: 13px; color: var(--muted); margin: 18px 0 8px; font-weight: 600; }
+.empty { color: var(--muted); font-size: 14px; padding: 10px 0; }
+
+.game {
+  position: relative;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-left: 5px solid var(--lc);
+  border-radius: 4px 10px 10px 4px;
+  padding: 10px 12px 10px 12px;
+  margin-bottom: 10px;
+}
+/* 已買票：右側變成票根撕線 */
+.game.has-ticket {
+  border-right: 2px dashed var(--ticket);
+  -webkit-mask: radial-gradient(circle 7px at 100% 50%, transparent 98%, #000) ;
+          mask: radial-gradient(circle 7px at 100% 50%, transparent 98%, #000);
+}
+.game .meta { display: flex; flex-wrap: wrap; gap: 4px 10px; font-size: 12.5px; color: var(--muted); }
+.game .meta .lg { color: var(--ink); font-weight: 600; }
+.game .meta .tm { font: 600 15px/1.2 var(--num); color: var(--ink); }
+.teams {
+  display: grid; grid-template-columns: 1fr auto 1fr; align-items: center;
+  gap: 8px; margin: 6px 0 8px;
+  font-size: 16px; font-weight: 600; line-height: 1.3;
+}
+.teams .home { text-align: right; }
+.teams small { display: block; font-size: 11px; font-weight: 400; color: var(--muted); }
+.teams .vs { font: 600 14px var(--num); color: var(--muted); }
+.st-row { display: flex; gap: 6px; flex-wrap: wrap; }
+.st {
+  border: 1px solid var(--line);
+  background: transparent;
+  border-radius: 999px;
+  padding: 4px 12px;
+  font-size: 13px;
+  display: inline-flex; align-items: center; gap: 4px;
+}
+.st::before { content: attr(data-g); font-weight: 700; }
+.st[data-f="want"][aria-pressed="true"] { background: var(--want-bg); border-color: var(--want); color: var(--want); }
+.st[data-f="ticket"][aria-pressed="true"] { background: var(--ticket-bg); border-color: var(--ticket); color: var(--ticket); }
+.st[data-f="busy"][aria-pressed="true"] { background: var(--busy-bg); border-color: var(--busy); color: var(--busy); }
+.st:disabled { opacity: .5; cursor: progress; }
+.who { font-size: 12.5px; color: var(--muted); margin-top: 8px; display: grid; gap: 2px; }
+.who b { color: var(--ink); font-weight: 600; }
+.open-detail {
+  margin-top: 8px; padding: 0;
+  background: none; border: 0;
+  color: var(--accent); font-size: 13.5px; font-weight: 600;
+}
+.open-detail:hover { text-decoration: underline; }
+
+.event {
+  background: var(--surface);
+  border: 1px dashed var(--muted);
+  border-radius: 8px;
+  padding: 9px 12px;
+  margin-bottom: 8px;
+}
+.event .row1 { display: flex; gap: 8px; align-items: baseline; }
+.event .tm { font: 600 15px var(--num); }
+.event .ttl { font-weight: 600; flex: 1; }
+.event .note { font-size: 13.5px; margin-top: 2px; white-space: pre-wrap; }
+.event .by { font-size: 12px; color: var(--muted); margin-top: 4px; }
+.link-btn { background: none; border: 0; padding: 0; color: var(--danger); font-size: 12px; }
+.primary {
+  background: var(--accent); color: var(--accent-ink);
+  border: 0; border-radius: 999px;
+  padding: 9px 18px; font-weight: 600;
+}
+.primary:disabled { opacity: .55; }
+.ghost { background: transparent; border: 1px solid var(--line); border-radius: 999px; padding: 8px 16px; }
+
+/* ── 比賽詳細頁 ── */
+.sheet {
+  position: fixed; inset: 0; z-index: 20;
+  background: var(--bg);
+  overflow-y: auto;
+  padding-top: env(safe-area-inset-top, 0px);
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+.sheet[hidden] { display: none; }
+.sheet-inner { max-width: 720px; margin: 0 auto; padding: 12px 16px 40px; }
+.sheet .back { margin-bottom: 10px; }
+.detail-head { border-left: 6px solid var(--lc); padding: 4px 0 4px 14px; margin-bottom: 14px; }
+.detail-head .when { font-size: 14px; color: var(--muted); }
+.detail-head .when .tm { font: 600 18px var(--num); color: var(--ink); }
+.detail-head .teams { font-size: clamp(17px, 5vw, 22px); margin: 6px 0 2px; word-break: keep-all; overflow-wrap: anywhere; }
+.people { display: grid; gap: 8px; margin-top: 4px; }
+@media (min-width: 560px) { .people { grid-template-columns: repeat(3, 1fr); } }
+.people > div { background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; }
+.people h4 { margin: 0 0 4px; font-size: 13px; }
+.people .want h4 { color: var(--want); }
+.people .ticket h4 { color: var(--ticket); }
+.people .busy h4 { color: var(--busy); }
+.people p { margin: 0; font-size: 14px; }
+.marks { list-style: none; padding: 0; margin: 0; display: grid; gap: 6px; }
+.marks li {
+  display: grid; grid-template-columns: auto 1fr; gap: 10px; align-items: baseline;
+  background: var(--surface); border-radius: 6px; padding: 6px 10px;
+  border-left: 3px solid var(--accent);
+}
+.marks .tm { font: 600 16px var(--num); font-variant-numeric: tabular-nums; }
+.comments { list-style: none; padding: 0; margin: 0; }
+.comments li { padding: 10px 0; border-bottom: 1px solid var(--line); }
+.comments .hd { display: flex; gap: 8px; align-items: baseline; font-size: 13px; }
+.comments .hd b { font-size: 14px; }
+.comments .hd span { color: var(--muted); }
+.comments .hd .link-btn { margin-left: auto; }
+.comments .tx { margin-top: 2px; white-space: pre-wrap; word-break: break-word; }
+.tag {
+  display: inline-block; margin-top: 4px;
+  font-size: 12.5px; color: var(--accent);
+  border: 1px solid currentColor; border-radius: 4px; padding: 0 6px;
+}
+.tag .tm { font: 600 14px var(--num); }
+.cform { display: grid; gap: 8px; margin-top: 14px; }
+textarea, input[type="text"], input[type="date"], input[type="time"], input[type="datetime-local"] {
+  width: 100%;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 9px 11px;
+}
+textarea { min-height: 76px; resize: vertical; }
+.cform .row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.cform label { font-size: 13px; color: var(--muted); }
+.cform .row input { flex: 1; min-width: 180px; }
+
+/* ── 對話框 ── */
+dialog {
+  border: 0; border-radius: 14px;
+  background: var(--surface); color: var(--ink);
+  width: min(420px, calc(100vw - 32px));
+  padding: 22px 20px 18px;
+}
+dialog::backdrop { background: rgb(10 14 20 / .55); }
+dialog h3 { margin: 0 0 6px; font-size: 19px; }
+dialog p { margin: 0 0 14px; color: var(--muted); font-size: 14px; }
+dialog .field { display: grid; gap: 4px; margin-bottom: 12px; }
+dialog .field span { font-size: 13px; color: var(--muted); }
+dialog .actions { display: flex; gap: 8px; justify-content: flex-end; margin-top: 6px; }
+.err { color: var(--danger); font-size: 13.5px; min-height: 1.2em; margin: -4px 0 8px; }
+.login-mark { font: 700 64px/0.8 var(--num); margin-bottom: 10px; }
+
+.toast {
+  position: fixed; left: 50%; bottom: calc(18px + env(safe-area-inset-bottom, 0px));
+  transform: translateX(-50%) translateY(20px);
+  background: var(--ink); color: var(--bg);
+  border-radius: 999px; padding: 8px 16px;
+  font-size: 14px; opacity: 0; pointer-events: none;
+  transition: opacity .2s, transform .2s; z-index: 50;
+  max-width: calc(100vw - 32px);
+}
+.toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+.loading { color: var(--muted); padding: 20px 0; }
+@media (prefers-reduced-motion: reduce) { .toast { transition: none; } }
+
+/* ── 資料版本列 ── */
+.statusbar {
+  max-width: 1080px; margin: 0 auto;
+  padding: 2px 16px 0;
+  display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+  font-size: 12.5px; color: var(--muted);
+}
+.statusbar .ver b { color: var(--ink); font: 600 14px var(--num); letter-spacing: .02em; }
+.statusbar .auto { white-space: nowrap; }
+.text-btn {
+  background: none; border: 0; padding: 4px 0;
+  color: var(--accent); font-size: 12.5px; font-weight: 600;
+}
+.text-btn:disabled { color: var(--muted); cursor: progress; }
+
+/* ── 入口（邀請、通關密語、名稱、PIN） ── */
+.gate {
+  position: fixed; inset: 0; z-index: 40;
+  background: var(--bg);
+  display: grid; place-items: center;
+  padding: calc(24px + env(safe-area-inset-top, 0px)) 20px calc(24px + env(safe-area-inset-bottom, 0px));
+  overflow-y: auto;
+}
+.gate[hidden] { display: none; }
+.gate-card { width: min(400px, 100%); }
+.gate-mark { font: 700 72px/0.8 var(--num); margin-bottom: 14px; }
+.gate h2 { margin: 0 0 6px; font-size: 22px; }
+.gate p { margin: 0 0 16px; color: var(--muted); font-size: 14.5px; }
+.gate .field { display: grid; gap: 4px; margin-bottom: 12px; }
+.gate .field span { font-size: 13px; color: var(--muted); }
+.gate .actions { display: flex; gap: 8px; justify-content: flex-end; }
+.gate-foot { margin-top: 18px !important; font-size: 13px !important; }
+.pin-input { font: 600 26px/1 var(--num) !important; letter-spacing: .5em; text-align: center; }
+
+/* ── 設定 ── */
+.set-group { padding: 12px 0; border-top: 1px solid var(--line); }
+.set-group:first-of-type { border-top: 0; padding-top: 4px; }
+.set-label { font-size: 13px; color: var(--muted); margin-bottom: 6px; display: block; font-weight: 600; }
+.seg { display: inline-flex; border: 1px solid var(--line); border-radius: 999px; padding: 2px; }
+.seg label { position: relative; }
+.seg input { position: absolute; opacity: 0; inset: 0; margin: 0; cursor: pointer; }
+.seg span { display: block; padding: 5px 14px; border-radius: 999px; font-size: 14px; }
+.seg input:checked + span { background: var(--ink); color: var(--bg); }
+.seg input:focus-visible + span { outline: 2px solid var(--accent); outline-offset: 1px; }
+select {
+  background: var(--surface); border: 1px solid var(--line);
+  border-radius: 8px; padding: 8px 10px; min-width: 160px;
+}
+.hint { font-size: 12.5px !important; color: var(--muted); margin: 6px 0 0 !important; }
+.set-row { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 8px; }
+.ghost.danger { color: var(--danger); border-color: currentColor; }
+.ver-detail { font-size: 14px; }
+.ver-detail b { font: 600 18px var(--num); }
+</style>
+</head>
+<body>
+
+<header class="top">
+  <h1 class="month-title" id="monthTitle" aria-live="polite">
+    <span class="mo" id="moNum">--</span>
+    <span class="side"><span class="yr" id="yrNum">----</span><span class="word">月賽程</span></span>
+  </h1>
+  <div class="nav">
+    <button class="icon-btn" id="prevBtn" aria-label="上個月">‹</button>
+    <button class="icon-btn" id="todayBtn">今天</button>
+    <button class="icon-btn" id="nextBtn" aria-label="下個月">›</button>
+    <button class="icon-btn me-btn" id="meBtn" title="設定與帳號">設定</button>
+  </div>
+</header>
+
+<div class="statusbar" aria-live="polite">
+  <span class="ver" id="verText">資料版本讀取中</span>
+  <button class="text-btn" id="refreshBtn">立即更新</button>
+  <span class="auto" id="autoText"></span>
+</div>
+
+<div class="demo-banner" id="demoBanner" hidden>
+  <strong>示範模式</strong>：資料只存在這個分頁，重新整理就會消失。通關密語是 demo，PIN 輸入任意 4 位數字。
+</div>
+
+<nav class="filters" id="filters" aria-label="顯示的聯盟"></nav>
+
+<main class="layout">
+  <section class="cal" aria-label="月曆">
+    <div class="weekdays"><div>日</div><div>一</div><div>二</div><div>三</div><div>四</div><div>五</div><div>六</div></div>
+    <div class="grid" id="grid"></div>
+    <div class="legend">
+      <span><b class="want">★</b>我想看</span>
+      <span><b class="ticket">✓</b>我已買票</span>
+      <span><b class="busy">✕</b>我無法到場</span>
+    </div>
+  </section>
+  <section class="agenda" id="agenda" aria-live="polite"></section>
+</main>
+
+<!-- 比賽詳細頁 -->
+<div class="sheet" id="gameSheet" hidden role="dialog" aria-modal="true" aria-label="比賽詳細資訊">
+  <div class="sheet-inner" id="gameInner"></div>
+</div>
+
+<!-- 入口：邀請連結、通關密語、名稱、PIN -->
+<div class="gate" id="gate" hidden>
+  <div class="gate-card">
+    <div class="gate-mark" aria-hidden="true">⚾</div>
+    <h2 id="gateTitle"></h2>
+    <p id="gateText"></p>
+    <form id="gateForm" novalidate>
+      <div id="gateFields"></div>
+      <div class="err" id="gateErr" role="alert"></div>
+      <div class="actions">
+        <button type="button" class="ghost" id="gateBack" hidden>返回</button>
+        <button class="primary" id="gateSubmit" type="submit"></button>
+      </div>
+    </form>
+    <p class="gate-foot" id="gateFoot"></p>
+  </div>
+</div>
+
+<!-- 確認對話框 -->
+<dialog id="confirmDlg">
+  <h3 id="confirmTitle"></h3>
+  <p id="confirmText"></p>
+  <div class="actions">
+    <button class="ghost" id="confirmNo" type="button"></button>
+    <button class="primary" id="confirmYes" type="button"></button>
+  </div>
+</dialog>
+
+<!-- 新增事項 -->
+<dialog id="eventDlg">
+  <form id="eventForm" method="dialog">
+    <h3>新增事項</h3>
+    <p>事項會顯示在行事曆上，並註明由你新增。</p>
+    <label class="field"><span>日期</span><input type="date" id="evDate" required></label>
+    <label class="field"><span>時間（可不填）</span><input type="time" id="evTime"></label>
+    <label class="field"><span>事項</span><input type="text" id="evTitle" maxlength="60" required placeholder="例如：一起訂高鐵票"></label>
+    <label class="field"><span>備註（可不填）</span><textarea id="evNote" maxlength="300"></textarea></label>
+    <div class="err" id="evErr"></div>
+    <div class="actions">
+      <button class="ghost" type="button" id="evCancel">取消</button>
+      <button class="primary" type="submit" id="evSave">新增事項</button>
+    </div>
+  </form>
+</dialog>
+
+<!-- 設定 -->
+<dialog id="setDlg" aria-labelledby="setTitle">
+  <h3 id="setTitle">設定</h3>
+  <div class="set-group">
+    <span class="set-label" id="themeLabel">外觀</span>
+    <div class="seg" role="radiogroup" aria-labelledby="themeLabel">
+      <label><input type="radio" name="theme" value="auto"><span>跟隨系統</span></label>
+      <label><input type="radio" name="theme" value="light"><span>淺色</span></label>
+      <label><input type="radio" name="theme" value="dark"><span>深色</span></label>
+    </div>
+  </div>
+  <div class="set-group">
+    <label class="set-label" for="refreshSel">自動更新</label>
+    <select id="refreshSel">
+      <option value="0">關閉</option>
+      <option value="15">每 15 秒</option>
+      <option value="30">每 30 秒</option>
+      <option value="60">每 1 分鐘</option>
+      <option value="180">每 3 分鐘</option>
+      <option value="300">每 5 分鐘</option>
+      <option value="600">每 10 分鐘</option>
+    </select>
+    <p class="hint" id="refreshHint">定時檢查資料版本，若有人更新才載入新資料。</p>
+  </div>
+  <div class="set-group">
+    <span class="set-label">資料版本</span>
+    <div class="ver-detail" id="setVer"></div>
+    <div class="set-row"><button class="ghost" id="setRefresh" type="button">立即更新</button></div>
+  </div>
+  <div class="set-group">
+    <span class="set-label">帳號</span>
+    <div>目前使用者：<b id="setMe"></b></div>
+    <div class="set-row">
+      <button class="ghost" id="switchBtn" type="button">切換使用者</button>
+      <button class="ghost danger" id="leaveBtn" type="button">登出並清除這台裝置的資料</button>
+    </div>
+  </div>
+  <div class="actions"><button class="primary" id="setClose" type="button">完成</button></div>
+</dialog>
+
+<div class="toast" id="toast" role="status"></div>
+<script>
+/* ════════════ 設定 ════════════
+ * 一般不需要修改：API 網址由邀請連結帶入（#invite=…），不寫在公開的程式碼裡。
+ * 若你堅持寫死，可以填在 API_URL；但任何人檢視原始碼都看得到。
+ * 示範模式：在網址加上 ?demo=1
+ */
+const API_URL = '';
+
+/* ════════════ 狀態 ════════════ */
+const LS = {
+  api: 'gamecal.api', code: 'gamecal.code', token: 'gamecal.token', name: 'gamecal.name',
+  hidden: 'gamecal.hiddenLeagues', theme: 'gamecal.theme', refresh: 'gamecal.refreshSec',
+  colors: 'gamecal.colors',
+};
+const WD = ['日', '一', '二', '三', '四', '五', '六'];
+const GLYPH = { want: '★', ticket: '✓', busy: '✕' };
+const LABEL = { want: '想看', ticket: '已買票', busy: '無法到場' };
+const SHORT = { '中信兄弟': '兄弟', '樂天桃猿': '樂天', '統一7-ELEVEn獅': '統一', '統一獅': '統一',
+                '富邦悍將': '富邦', '味全龍': '味全', '台鋼雄鷹': '台鋼' };
+const API_RE = /^https:\/\/script\.google\.com\/macros\/s\/[A-Za-z0-9_-]+\/exec$/;
+const DEMO = new URLSearchParams(location.search).has('demo');
+
+const today = new Date();
+const S = {
+  api: null, code: null, token: null, me: null,
+  leagues: [],
+  hidden: new Set(),
+  y: today.getFullYear(),
+  m: today.getMonth() + 1,
+  sel: ymd(today),
+  data: emptyData(),
+  loadedYm: null,
+  openGameId: null,
+  version: null,          // 目前畫面資料的版本資訊
+  serverRefresh: 60,      // 試算表設定的預設更新間隔
+  refreshSec: 60,         // 實際使用的更新間隔
+  pollTimer: null,
+  lastCheck: null,
+  gateStep: null,
+  gateCtx: {},
+};
+
+const $ = (id) => document.getElementById(id);
+const store = {
+  get: (k) => { try { return localStorage.getItem(k); } catch (e) { return null; } },
+  set: (k, v) => { try { localStorage.setItem(k, v); } catch (e) {} },
+  del: (k) => { try { localStorage.removeItem(k); } catch (e) {} },
+};
+
+/* ════════════ 工具 ════════════ */
+function emptyData() { return { games: [], people: {}, commentCounts: {}, events: [] }; }
+function pad(n) { return String(n).padStart(2, '0'); }
+function ymd(d) { return d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate()); }
+function ymStr(y, m) { return y + '-' + pad(m); }
+function parseYmd(s) { const [y, m, d] = s.split('-').map(Number); return new Date(y, m - 1, d); }
+function esc(s) {
+  return String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+}
+function shortTeam(t) { return SHORT[t] || (t.length > 3 ? t.slice(0, 2) : t); }
+function fmtStamp(s) { // 2026-11-01T14:03:22 → 11/01 14:03
+  if (!s) return '';
+  const m = s.match(/^(\d{4})-(\d{2})-(\d{2})T(\d{2}:\d{2})/);
+  return m ? `${m[2]}/${m[3]} ${m[4]}` : s;
+}
+function fmtTag(s) { // 2026-11-01T17:30 → 11/01（日）17:30
+  const m = s && s.match(/^(\d{4})-(\d{2})-(\d{2})T(\d{2}:\d{2})/);
+  if (!m) return esc(s || '');
+  const wd = WD[new Date(+m[1], +m[2] - 1, +m[3]).getDay()];
+  return `${m[2]}/${m[3]}（${wd}）<span class="tm">${m[4]}</span>`;
+}
+function league(id) { return S.leagues.find((l) => l.id === id) || { id, name: id, color: '#667085' }; }
+function toast(msg) {
+  const t = $('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  clearTimeout(toast._t);
+  toast._t = setTimeout(() => t.classList.remove('show'), 2600);
+}
+function reduceMotion() { return matchMedia('(prefers-reduced-motion: reduce)').matches; }
+
+/* ════════════ API ════════════ */
+async function api(action, payload = {}) {
+  const req = { action, code: S.code, token: S.token, ...payload };
+  let res;
+  if (S.api === 'demo') {
+    res = mockCall(req);
+  } else {
+    let r;
+    try {
+      r = await fetch(S.api, { method: 'POST', body: JSON.stringify(req) });
+    } catch (e) {
+      throw Object.assign(new Error('連不上伺服器，請檢查網路後再試一次'), { code: 'NETWORK' });
+    }
+    res = await r.json().catch(() => ({ ok: false, error: 'BAD_RESPONSE', message: '伺服器回應格式錯誤，請確認邀請連結是否正確' }));
+  }
+  if (!res.ok) {
+    const err = Object.assign(new Error(res.message || res.error), { code: res.error });
+    // 使用中途通關密語被更換、或登入失效：回到對應的入口步驟
+    if ($('gate').hidden) {
+      if (err.code === 'BAD_CODE') { clearCode(); showGate('code', { err: '群組通關密語已更換，請輸入新的通關密語' }); }
+      else if (err.code === 'NO_SESSION') { clearSession(); showGate('name', { err: '登入已失效，請重新登入' }); }
+    }
+    throw err;
+  }
+  if (res.version) setVersion(res.version);
+  return res;
+}
+
+/* ════════════ 邀請連結 ════════════ */
+function decodeInvite(text) {
+  const raw = String(text || '').trim();
+  if (API_RE.test(raw)) return raw;                       // 直接貼 /exec 網址也接受
+  const m = raw.match(/invite=([A-Za-z0-9_-]+)/);
+  if (!m) return null;
+  try {
+    let b = m[1].replace(/-/g, '+').replace(/_/g, '/');
+    while (b.length % 4) b += '=';
+    const url = decodeURIComponent(escape(atob(b)));
+    return API_RE.test(url) ? url : null;                 // 只接受 Google Apps Script 網址，避免被導到假網站
+  } catch (e) { return null; }
+}
+
+function readInviteFromHash() {
+  if (!/invite=/.test(location.hash)) return;
+  const url = decodeInvite(location.hash);
+  history.replaceState(null, '', location.pathname + location.search);   // 立刻從網址列移除
+  if (!url) { toast('邀請連結格式不正確'); return; }
+  if (store.get(LS.api) !== url) { store.del(LS.code); store.del(LS.token); }
+  store.set(LS.api, url);
+}
+
+function clearCode() { S.code = null; store.del(LS.code); }
+function clearSession() { S.token = null; S.me = null; store.del(LS.token); }
+
+/* ════════════ 入口畫面 ════════════ */
+const GATE = {
+  invite: {
+    title: '歡迎來到J個行事曆',
+    text: '這個球賽行事曆只開放給受邀的朋友，請用邀請連結開啟。',
+    fields: '<label class="field"><span>邀請連結</span><input type="text" id="gInvite" autocomplete="off" spellcheck="false" required></label>',
+    submit: '繼續',
+  },
+  code: {
+    title: '輸入Ｊ群通關密語',
+    text: '輸入一次後，這台裝置會記住。',
+    fields: '<label class="field"><span>Ｊ群通關密語</span><input type="text" id="gCode" autocomplete="off" autocapitalize="characters" spellcheck="false" required></label>',
+    submit: '確認',
+  },
+  name: {
+    title: '你的名稱',
+    text: '大家會用這個名稱看到你的觀賽狀態和留言。換裝置時輸入同一個名稱和 PIN，就能沿用你的資料。',
+    fields: '<label class="field"><span>名稱（最多 20 字）</span><input type="text" id="gName" maxlength="20" autocomplete="nickname" required></label>',
+    submit: '下一步',
+  },
+  pin: {
+    title: '輸入 PIN',
+    fields: '<label class="field"><span>4 位數 PIN</span><input class="pin-input" type="password" id="gPin" inputmode="numeric" pattern="\\d{4}" maxlength="4" autocomplete="current-password" required></label>',
+    submit: '登入',
+    back: true,
+    foot: '忘記 PIN 的話，請管理者在試算表清除你的 PIN，之後重新登入就能設定新的。',
+  },
+  pinNew: {
+    title: '設定 4 位數 PIN',
+    fields: `<label class="field"><span>PIN</span><input class="pin-input" type="password" id="gPin" inputmode="numeric" pattern="\\d{4}" maxlength="4" autocomplete="new-password" required></label>
+             <label class="field"><span>再輸入一次</span><input class="pin-input" type="password" id="gPin2" inputmode="numeric" pattern="\\d{4}" maxlength="4" autocomplete="new-password" required></label>`,
+    submit: '完成',
+    back: true,
+    foot: '別人知道你的名稱也無法冒用，除非他也知道 PIN。',
+  },
+};
+
+function showGate(step, ctx = {}) {
+  const g = GATE[step];
+  S.gateStep = step;
+  S.gateCtx = ctx;
+  $('gateTitle').textContent = ctx.title || g.title;
+  $('gateText').textContent = ctx.text || g.text || '';
+  $('gateFields').innerHTML = g.fields;
+  $('gateSubmit').textContent = g.submit;
+  $('gateSubmit').disabled = false;
+  $('gateBack').hidden = !g.back;
+  $('gateFoot').textContent = g.foot || '';
+  $('gateErr').textContent = ctx.err || '';
+  stopPoll();
+  if (!$('gameSheet').hidden) closeGame(true);
+  document.querySelectorAll('dialog[open]').forEach((d) => d.close());
+  $('gate').hidden = false;
+  if (step === 'name' && ctx.prefill) $('gName').value = ctx.prefill;
+  setTimeout(() => $('gateFields').querySelector('input')?.focus(), 30);
+}
+function hideGate() { $('gate').hidden = true; S.gateStep = null; }
+
+$('gateBack').addEventListener('click', () => showGate('name', { prefill: S.gateCtx.name }));
+
+$('gateForm').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const err = (m) => { $('gateErr').textContent = m; };
+  const btn = $('gateSubmit');
+  err('');
+  btn.disabled = true;
+  try {
+    switch (S.gateStep) {
+      case 'invite': {
+        const url = decodeInvite($('gInvite').value);
+        if (!url) return err('這不是有效的邀請連結，請確認有完整複製。');
+        store.set(LS.api, url); S.api = url;
+        clearCode(); clearSession();
+        showGate('code');
+        break;
+      }
+      case 'code': {
+        const code = $('gCode').value.trim();
+        if (!code) return err('請輸入通關密語');
+        S.code = code;
+        try { await api('verifyCode'); }
+        catch (ex) { S.code = null; return err(ex.code === 'BAD_CODE' ? '通關密語不正確' : ex.message); }
+        store.set(LS.code, code);
+        await afterCode();
+        break;
+      }
+      case 'name': {
+        const name = $('gName').value.trim();
+        if (!name) return err('請輸入名稱');
+        const r = await api('checkName', { name });
+        if (!r.exists) { showGate('pinNew', { name, mode: 'register', text: `為「${name}」設定一組 PIN，換裝置登入時需要輸入。` }); break; }
+        $('gate').hidden = true;
+        const mine = await confirmBox('這個名稱已經有人使用', `「${r.name}」是你本人嗎？`, '是，是我本人', '不是');
+        $('gate').hidden = false;
+        if (!mine) { showGate('name', { prefill: name, err: '名稱已使用，請換個名稱' }); break; }
+        if (r.hasPin) showGate('pin', { name: r.name, text: `請輸入「${r.name}」的 PIN。` });
+        else showGate('pinNew', { name: r.name, mode: 'legacy', text: `「${r.name}」還沒有設定 PIN，請設定一組。` });
+        break;
+      }
+      case 'pin': {
+        const pin = $('gPin').value.trim();
+        if (!/^\d{4}$/.test(pin)) return err('PIN 必須是 4 位數字');
+        const r = await api('login', { name: S.gateCtx.name, pin });
+        signedIn(r.name, r.token, `歡迎回來，${r.name}`);
+        break;
+      }
+      case 'pinNew': {
+        const pin = $('gPin').value.trim();
+        if (!/^\d{4}$/.test(pin)) return err('PIN 必須是 4 位數字');
+        if (pin !== $('gPin2').value.trim()) return err('兩次輸入的 PIN 不一樣');
+        const { name, mode } = S.gateCtx;
+        const r = mode === 'register' ? await api('register', { name, pin }) : await api('login', { name, pin });
+        signedIn(r.name, r.token, mode === 'register' ? `歡迎，${r.name}` : '已設定 PIN');
+        break;
+      }
+    }
+  } catch (ex) {
+    if (ex.code === 'NAME_TAKEN') showGate('name', { prefill: S.gateCtx.name, err: '名稱已使用，請換個名稱' });
+    else err(ex.message);
+  } finally {
+    btn.disabled = false;
+  }
+});
+
+function signedIn(name, token, msg) {
+  S.me = name; S.token = token;
+  store.set(LS.name, name); store.set(LS.token, token);
+  enterApp();
+  toast(msg);
+}
+
+function confirmBox(title, text, yesLabel, noLabel) {
+  return new Promise((resolve) => {
+    $('confirmTitle').textContent = title;
+    $('confirmText').textContent = text;
+    $('confirmYes').textContent = yesLabel;
+    $('confirmNo').textContent = noLabel;
+    const dlg = $('confirmDlg');
+    const done = (v) => { dlg.close(); resolve(v); };
+    $('confirmYes').onclick = () => done(true);
+    $('confirmNo').onclick = () => done(false);
+    dlg.oncancel = (e) => { e.preventDefault(); done(false); };
+    dlg.showModal();
+  });
+}
+
+/* ════════════ 啟動流程 ════════════ */
+async function boot() {
+  if (DEMO) { S.api = 'demo'; $('demoBanner').hidden = false; }
+  else {
+    readInviteFromHash();
+    S.api = API_URL || store.get(LS.api);
+  }
+  if (!S.api) return showGate('invite');
+  S.code = store.get(LS.code);
+  if (!S.code) return showGate('code');
+  await afterCode();
+}
+
+async function afterCode() {
+  try {
+    const r = await api('init');
+    S.leagues = r.leagues;
+    S.serverRefresh = r.refreshSec;
+    applyColors(r.theme);
+    const saved = store.get(LS.hidden);
+    S.hidden = new Set(saved ? JSON.parse(saved) : r.leagues.filter((l) => !l.enabled).map((l) => l.id));
+    const mine = store.get(LS.refresh);
+    S.refreshSec = mine !== null ? Number(mine) : r.refreshSec;
+  } catch (ex) {
+    if (ex.code === 'BAD_CODE') { clearCode(); return showGate('code', { err: '群組通關密語已更換，請輸入新的通關密語' }); }
+    if (ex.code === 'BAD_RESPONSE' || ex.code === 'NETWORK') return showGate('invite', { err: ex.message });
+    return showGate('code', { err: ex.message });
+  }
+  renderFilters();
+  S.token = store.get(LS.token);
+  if (S.token) {
+    try {
+      const r = await api('me');
+      S.me = r.name;
+      store.set(LS.name, r.name);
+      return enterApp();
+    } catch (ex) {
+      clearSession();
+    }
+  }
+  showGate('name', { prefill: store.get(LS.name) || '' });
+}
+
+function enterApp() {
+  hideGate();
+  $('meBtn').textContent = S.me;
+  renderAll();
+  loadMonth();
+  schedulePoll();
+}
+
+/* ════════════ 資料版本與自動更新 ════════════ */
+function setVersion(v) {
+  if (!v || typeof v.version !== 'number') return;
+  S.serverVersion = v;
+  renderVersion();
+}
+
+function renderVersion() {
+  const v = S.serverVersion;
+  if (!v) return;
+  const who = v.by ? `${esc(v.by)} 於 ${fmtStamp(v.at)} ${esc(v.what)}` : '尚無更新紀錄';
+  $('verText').innerHTML = `資料版本 <b>${v.version}</b>　${who}`;
+  $('setVer').innerHTML = `版本 <b>${v.version}</b><br>${who}`;
+  renderAutoText();
+}
+
+function renderAutoText() {
+  const sec = S.refreshSec;
+  const label = sec <= 0 ? '自動更新已關閉' : sec < 60 ? `每 ${sec} 秒自動更新` : `每 ${sec / 60} 分鐘自動更新`;
+  $('autoText').textContent = label;
+}
+
+function stopPoll() { clearInterval(S.pollTimer); S.pollTimer = null; }
+function schedulePoll() {
+  stopPoll();
+  renderAutoText();
+  if (S.refreshSec > 0 && S.me) S.pollTimer = setInterval(() => checkUpdate(false), S.refreshSec * 1000);
+}
+
+/** 檢查資料版本；版本變了（或手動強制）就重新載入 */
+async function checkUpdate(force) {
+  if (!S.me || (!force && document.hidden)) return;
+  const shown = S.version;
+  try {
+    const r = await api('version');
+    applyColors(r.theme);
+    if (r.refreshSec !== S.serverRefresh) S.serverRefresh = r.refreshSec;
+    if (force || !shown || r.version.version !== shown.version) {
+      await loadMonth({ quiet: true });
+      if (S.openGameId) await openGame(S.openGameId, { keepScroll: true });
+      return true;
+    }
+  } catch (ex) {
+    if (force) toast(ex.message);
+  }
+  return false;
+}
+
+async function manualRefresh() {
+  const btns = [$('refreshBtn'), $('setRefresh')];
+  btns.forEach((b) => { b.disabled = true; b.textContent = '更新中…'; });
+  await checkUpdate(true);
+  btns.forEach((b) => { b.disabled = false; b.textContent = '立即更新'; });
+  if (S.version) toast(`已更新到版本 ${S.version.version}`);
+}
+$('refreshBtn').onclick = manualRefresh;
+$('setRefresh').onclick = manualRefresh;
+
+/* ════════════ 設定 ════════════ */
+function applyTheme(t) {
+  if (t === 'light' || t === 'dark') document.documentElement.dataset.theme = t;
+  else delete document.documentElement.dataset.theme;
+}
+/** 套用試算表 Settings 頁的配色，並記在裝置上（下次開啟、尚未輸入通關密語前也能套用） */
+function applyColors(theme) {
+  if (!theme) return;
+  const json = JSON.stringify(theme);
+  if (json === S.colorsJson) return;
+  S.colorsJson = json;
+  let el = document.getElementById('customColors');
+  if (!el) { el = document.createElement('style'); el.id = 'customColors'; document.head.appendChild(el); }
+  el.textContent = colorCss(theme);
+  store.set(LS.colors, json);
+}
+
+$('meBtn').addEventListener('click', () => {
+  const theme = store.get(LS.theme) || 'auto';
+  document.querySelectorAll('input[name="theme"]').forEach((r) => (r.checked = r.value === theme));
+  const sel = $('refreshSel');
+  if (![...sel.options].some((o) => Number(o.value) === S.refreshSec)) {
+    sel.add(new Option(`每 ${S.refreshSec} 秒`, String(S.refreshSec)));
+  }
+  sel.value = String(S.refreshSec);
+  $('refreshHint').textContent = `定時檢查資料版本，有人更新時自動載入新資料。管理者預設為${S.serverRefresh > 0 ? `每 ${S.serverRefresh} 秒` : '關閉'}。`;
+  $('setMe').textContent = S.me || '';
+  renderVersion();
+  $('setDlg').showModal();
+});
+document.querySelectorAll('input[name="theme"]').forEach((r) => r.addEventListener('change', () => {
+  const t = r.value;
+  t === 'auto' ? store.del(LS.theme) : store.set(LS.theme, t);
+  applyTheme(t);
+}));
+$('refreshSel').addEventListener('change', (e) => {
+  S.refreshSec = Number(e.target.value);
+  store.set(LS.refresh, String(S.refreshSec));
+  schedulePoll();
+});
+$('setClose').onclick = () => $('setDlg').close();
+$('switchBtn').onclick = async () => {
+  $('setDlg').close();
+  try { await api('logout'); } catch (e) {}
+  const prev = S.me;
+  clearSession();
+  showGate('name', { prefill: '', text: `已登出「${prev}」。輸入要使用的名稱。` });
+};
+$('leaveBtn').onclick = async () => {
+  $('setDlg').close();
+  const ok = await confirmBox('登出並清除資料', '會登出並清除這台裝置記住的邀請連結、通關密語和設定。之後需要重新用邀請連結開啟。', '清除', '取消');
+  if (!ok) return;
+  try { await api('logout'); } catch (e) {}
+  Object.values(LS).forEach((k) => store.del(k));
+  applyTheme('auto');
+  document.getElementById('customColors')?.remove();
+  S.colorsJson = null;
+  S.api = DEMO ? 'demo' : (API_URL || null); S.code = null; S.token = null; S.me = null;
+  S.data = emptyData(); S.loadedYm = null; S.version = null;
+  renderAll();
+  showGate(S.api ? 'code' : 'invite');
+};
+
+/* ════════════ 資料載入 ════════════ */
+async function loadMonth({ quiet = false } = {}) {
+  const ym = ymStr(S.y, S.m);
+  if (!quiet) $('grid').style.opacity = .5;
+  try {
+    const r = await api('month', { ym });
+    if (ym !== ymStr(S.y, S.m)) return; // 使用者已切到別的月份
+    S.data = r;
+    S.loadedYm = ym;
+    S.version = r.version;
+    renderAll();
+  } catch (err) {
+    if ($('gate').hidden) toast(err.message);
+  } finally {
+    $('grid').style.opacity = '';
+  }
+}
+
+/* ════════════ 畫面：篩選 ════════════ */
+function renderFilters() {
+  $('filters').innerHTML = S.leagues.map((l) => `
+    <button class="chip" style="--lc:${esc(l.color)}" data-lg="${esc(l.id)}" aria-pressed="${!S.hidden.has(l.id)}">
+      <span class="sw"></span>${esc(l.name)}
+    </button>`).join('');
+}
+$('filters').addEventListener('click', (e) => {
+  const b = e.target.closest('.chip');
+  if (!b) return;
+  const id = b.dataset.lg;
+  S.hidden.has(id) ? S.hidden.delete(id) : S.hidden.add(id);
+  store.set(LS.hidden, JSON.stringify([...S.hidden]));
+  renderFilters();
+  renderAll();
+});
+
+function visibleGames() { return S.data.games.filter((g) => !S.hidden.has(g.league)); }
+function myStatus(gid) {
+  const p = S.data.people[gid];
+  if (!p || !S.me) return { want: false, ticket: false, busy: false };
+  return { want: p.want.includes(S.me), ticket: p.ticket.includes(S.me), busy: p.busy.includes(S.me) };
+}
+function statusKey(st) { return st.ticket ? 'ticket' : st.busy ? 'busy' : st.want ? 'want' : ''; }
+
+/* ════════════ 畫面：月曆 ════════════ */
+function renderCalendar() {
+  $('moNum').textContent = S.m;
+  $('yrNum').textContent = S.y;
+  document.title = `${S.y} 年 ${S.m} 月｜球賽行事曆`;
+
+  const first = new Date(S.y, S.m - 1, 1);
+  const days = new Date(S.y, S.m, 0).getDate();
+  const weeks = Math.ceil((first.getDay() + days) / 7);
+  const start = new Date(first);
+  start.setDate(1 - first.getDay());
+
+  const byDate = {};
+  visibleGames().forEach((g) => (byDate[g.date] ||= []).push(g));
+  const evByDate = {};
+  S.data.events.forEach((ev) => (evByDate[ev.date] ||= []).push(ev));
+
+  const todayStr = ymd(new Date());
+  let html = '';
+  for (let i = 0; i < weeks * 7; i++) {
+    const d = new Date(start);
+    d.setDate(start.getDate() + i);
+    const ds = ymd(d);
+    const inMonth = d.getMonth() === S.m - 1;
+    const games = inMonth ? byDate[ds] || [] : [];
+    const evs = inMonth ? evByDate[ds] || [] : [];
+    const cls = ['cell', inMonth ? '' : 'out', ds === todayStr ? 'today' : '', ds === S.sel ? 'sel' : ''].join(' ');
+    const shown = games.slice(0, 3);
+    const label = `${d.getMonth() + 1}月${d.getDate()}日，${games.length} 場比賽${evs.length ? `，${evs.length} 個事項` : ''}`;
+    html += `<button class="${cls}" data-date="${ds}" aria-label="${label}" ${inMonth ? '' : 'tabindex="-1"'}>
+      <span class="d">${d.getDate()}</span>
+      ${shown.map((g) => {
+        const k = statusKey(myStatus(g.id));
+        return `<span class="mk ${k === 'ticket' ? 'mine-ticket' : ''}" style="--lc:${esc(league(g.league).color)}">
+          <span class="t">${esc(shortTeam(g.away))} ${esc(shortTeam(g.home))}</span>
+          ${k ? `<span class="s ${k}">${GLYPH[k]}</span>` : ''}</span>`;
+      }).join('')}
+      ${games.length > 3 ? `<span class="more">+${games.length - 3} 場</span>` : ''}
+      ${evs.length ? `<span class="ev-mk">${evs.length > 1 ? evs.length + ' 事項' : `<span class="t">${esc(evs[0].title)}</span>`}</span>` : ''}
+    </button>`;
+  }
+  $('grid').innerHTML = html;
+}
+
+$('grid').addEventListener('click', (e) => {
+  const c = e.target.closest('.cell');
+  if (!c) return;
+  const ds = c.dataset.date;
+  const d = parseYmd(ds);
+  if (d.getMonth() + 1 !== S.m) {
+    S.y = d.getFullYear(); S.m = d.getMonth() + 1; S.sel = ds;
+    S.data = emptyData();
+    renderAll(); loadMonth();
+    return;
+  }
+  S.sel = ds;
+  renderCalendar();
+  renderAgenda();
+  if (window.innerWidth < 900) $('agenda').scrollIntoView({ behavior: reduceMotion() ? 'auto' : 'smooth', block: 'start' });
+});
+
+function goMonth(delta) {
+  const d = new Date(S.y, S.m - 1 + delta, 1);
+  S.y = d.getFullYear(); S.m = d.getMonth() + 1;
+  const t = new Date();
+  S.sel = (t.getFullYear() === S.y && t.getMonth() + 1 === S.m) ? ymd(t) : ymd(d);
+  S.data = emptyData();
+  renderAll();
+  loadMonth();
+}
+$('prevBtn').onclick = () => goMonth(-1);
+$('nextBtn').onclick = () => goMonth(1);
+$('todayBtn').onclick = () => {
+  const t = new Date();
+  const same = t.getFullYear() === S.y && t.getMonth() + 1 === S.m;
+  S.y = t.getFullYear(); S.m = t.getMonth() + 1; S.sel = ymd(t);
+  if (same) renderAll(); else { S.data = emptyData(); renderAll(); loadMonth(); }
+};
+
+/* ════════════ 畫面：當日行程 ════════════ */
+function gameCard(g) {
+  const st = myStatus(g.id);
+  const p = S.data.people[g.id] || { want: [], ticket: [], busy: [] };
+  const lg = league(g.league);
+  const cc = S.data.commentCounts[g.id] || 0;
+  const whoLine = (k) => p[k].length ? `<div><b>${LABEL[k]}</b>　${p[k].map(esc).join('、')}</div>` : '';
+  return `<article class="game ${st.ticket ? 'has-ticket' : ''}" style="--lc:${esc(lg.color)}">
+    <div class="meta">
+      <span class="lg">${esc(lg.name)}</span>
+      ${g.time ? `<span class="tm">${esc(g.time)}</span>` : '<span>時間未定</span>'}
+      ${g.venue ? `<span>${esc(g.venue)}</span>` : ''}
+      ${g.note ? `<span>${esc(g.note)}</span>` : ''}
+    </div>
+    <div class="teams">
+      <div>${esc(g.away)}<small>客隊</small></div>
+      <div class="vs">VS</div>
+      <div class="home">${esc(g.home)}<small>主隊</small></div>
+    </div>
+    ${statusButtons(g.id, st)}
+    ${(p.want.length || p.ticket.length || p.busy.length) ? `<div class="who">${whoLine('ticket')}${whoLine('want')}${whoLine('busy')}</div>` : ''}
+    <button class="open-detail" data-open="${esc(g.id)}">留言與詳細資訊${cc ? `（${cc} 則留言）` : ''}</button>
+  </article>`;
+}
+
+function statusButtons(gid, st) {
+  return `<div class="st-row" role="group" aria-label="我的狀態">
+    ${['want', 'ticket', 'busy'].map((f) => `<button class="st" data-gid="${esc(gid)}" data-f="${f}" data-g="${GLYPH[f]}" aria-pressed="${st[f]}">${LABEL[f]}</button>`).join('')}
+  </div>`;
+}
+
+function eventCard(ev) {
+  return `<article class="event">
+    <div class="row1">
+      ${ev.time ? `<span class="tm">${esc(ev.time)}</span>` : ''}
+      <span class="ttl">${esc(ev.title)}</span>
+      ${ev.createdBy === S.me ? `<button class="link-btn" data-del-ev="${esc(ev.id)}">刪除</button>` : ''}
+    </div>
+    ${ev.note ? `<div class="note">${esc(ev.note)}</div>` : ''}
+    <div class="by">由 ${esc(ev.createdBy)} 於 ${fmtStamp(ev.createdAt)} 新增</div>
+  </article>`;
+}
+
+function renderAgenda() {
+  const d = parseYmd(S.sel);
+  const loaded = S.loadedYm === ymStr(S.y, S.m);
+  const games = visibleGames().filter((g) => g.date === S.sel);
+  const evs = S.data.events.filter((ev) => ev.date === S.sel);
+  const hiddenCount = S.data.games.filter((g) => g.date === S.sel && S.hidden.has(g.league)).length;
+
+  let body;
+  if (!loaded) {
+    body = '<div class="loading">讀取賽程中…</div>';
+  } else {
+    body = `
+      ${games.length ? games.map(gameCard).join('') : `<div class="empty">這天沒有比賽${hiddenCount ? `（另有 ${hiddenCount} 場屬於已隱藏的聯盟）` : ''}。</div>`}
+      <div class="sec-title">事項</div>
+      ${evs.length ? evs.map(eventCard).join('') : '<div class="empty">還沒有人新增事項。</div>'}
+      <button class="ghost" id="addEvBtn">新增事項</button>`;
+  }
+  $('agenda').innerHTML = `
+    <h2><span class="n">${d.getMonth() + 1}/${d.getDate()}</span><span class="wd">星期${WD[d.getDay()]}</span></h2>
+    ${body}`;
+}
+
+$('agenda').addEventListener('click', (e) => {
+  const st = e.target.closest('.st');
+  if (st) return toggleStatus(st);
+  const open = e.target.closest('[data-open]');
+  if (open) return openGame(open.dataset.open);
+  const del = e.target.closest('[data-del-ev]');
+  if (del) return deleteEvent(del.dataset.delEv);
+  if (e.target.closest('#addEvBtn')) return openEventForm();
+});
+
+/* 寫入成功後：若伺服器版本剛好是「畫面版本 + 1」，代表只有自己的變更，直接採用，不必重新載入 */
+function acceptOwnWrite(v) {
+  if (S.version && v && v.version === S.version.version + 1) S.version = v;
+}
+
+/* ════════════ 狀態切換（先更新畫面，再寫回伺服器） ════════════ */
+async function toggleStatus(btn) {
+  const gid = btn.dataset.gid;
+  const field = btn.dataset.f;
+  const value = btn.getAttribute('aria-pressed') !== 'true';
+  const before = JSON.parse(JSON.stringify(S.data.people[gid] || { want: [], ticket: [], busy: [] }));
+  const p = S.data.people[gid] = JSON.parse(JSON.stringify(before));
+  const setIn = (k, on) => { p[k] = p[k].filter((n) => n !== S.me); if (on) p[k].push(S.me); };
+  setIn(field, value);
+  if (field === 'busy' && value) { setIn('want', false); setIn('ticket', false); }
+  if (field !== 'busy' && value) setIn('busy', false);
+  renderAll();
+  document.querySelectorAll(`.st[data-gid="${CSS.escape(gid)}"]`).forEach((b) => (b.disabled = true));
+  try {
+    const r = await api('setStatus', { game_id: gid, field, value });
+    acceptOwnWrite(r.version);
+  } catch (err) {
+    S.data.people[gid] = before;
+    if ($('gate').hidden) toast('沒有儲存成功：' + err.message);
+  }
+  renderAll();
+}
+
+/* ════════════ 事項 ════════════ */
+function openEventForm() {
+  $('evDate').value = S.sel;
+  $('evTime').value = '';
+  $('evTitle').value = '';
+  $('evNote').value = '';
+  $('evErr').textContent = '';
+  $('eventDlg').showModal();
+}
+$('evCancel').onclick = () => $('eventDlg').close();
+$('eventForm').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const payload = { date: $('evDate').value, time: $('evTime').value,
+                    title: $('evTitle').value.trim(), note: $('evNote').value.trim() };
+  if (!payload.title) { $('evErr').textContent = '請輸入事項名稱'; return; }
+  $('evSave').disabled = true;
+  try {
+    await api('addEvent', payload);
+    $('eventDlg').close();
+    toast('已新增事項');
+    const d = parseYmd(payload.date);
+    S.sel = payload.date;
+    if (d.getFullYear() !== S.y || d.getMonth() + 1 !== S.m) { S.y = d.getFullYear(); S.m = d.getMonth() + 1; }
+    await loadMonth({ quiet: true });
+  } catch (err) {
+    $('evErr').textContent = err.message;
+  } finally {
+    $('evSave').disabled = false;
+  }
+});
+async function deleteEvent(id) {
+  const ok = await confirmBox('刪除事項', '確定要刪除這個事項嗎？其他人也會看不到。', '刪除', '取消');
+  if (!ok) return;
+  try { await api('deleteEvent', { event_id: id }); toast('已刪除事項'); loadMonth({ quiet: true }); }
+  catch (err) { toast(err.message); }
+}
+
+/* ════════════ 比賽詳細頁 ════════════ */
+async function openGame(gid, { keepScroll = false } = {}) {
+  S.openGameId = gid;
+  const sheet = $('gameSheet');
+  if (sheet.hidden) {
+    sheet.hidden = false;
+    document.body.style.overflow = 'hidden';
+    $('gameInner').innerHTML = '<button class="icon-btn back" data-close>‹ 返回行事曆</button><div class="loading">讀取中…</div>';
+    history.pushState({ game: gid }, '', '#game');
+  }
+  const y = sheet.scrollTop;
+  try {
+    const r = await api('game', { game_id: gid });
+    if (S.openGameId !== gid) return;
+    S.data.people[gid] = r.people;
+    S.data.commentCounts[gid] = r.comments.length;
+    renderGame(r);
+    if (keepScroll) sheet.scrollTop = y;
+  } catch (err) {
+    if (S.openGameId === gid && !sheet.hidden) {
+      $('gameInner').innerHTML = `<button class="icon-btn back" data-close>‹ 返回行事曆</button><div class="empty">${esc(err.message)}</div>`;
+    }
+  }
+}
+
+function renderGame({ game: g, people: p, comments }) {
+  const lg = league(g.league);
+  const d = parseYmd(g.date);
+  const st = myStatus(g.id);
+  const marks = comments.filter((c) => c.tagAt).sort((a, b) => (a.tagAt < b.tagAt ? -1 : 1));
+  const list = (k) => p[k].length ? p[k].map(esc).join('、') : '<span style="color:var(--muted)">還沒有人</span>';
+  const draft = $('cText')?.value || '';
+  const draftTag = $('cTag')?.value || '';
+  $('gameInner').innerHTML = `
+    <button class="icon-btn back" data-close>‹ 返回行事曆</button>
+    <div class="detail-head" style="--lc:${esc(lg.color)}">
+      <div class="when">${esc(lg.name)}　${d.getMonth() + 1}月${d.getDate()}日（${WD[d.getDay()]}）
+        ${g.time ? `<span class="tm">${esc(g.time)}</span>` : '時間未定'}　${esc(g.venue || '')}</div>
+      <div class="teams">
+        <div>${esc(g.away)}<small>客隊</small></div><div class="vs">VS</div><div class="home">${esc(g.home)}<small>主隊</small></div>
+      </div>
+      ${g.note ? `<div class="when">${esc(g.note)}</div>` : ''}
+    </div>
+    ${statusButtons(g.id, st)}
+    <div class="sec-title">大家的狀態</div>
+    <div class="people">
+      <div class="ticket"><h4>✓ 已買票</h4><p>${list('ticket')}</p></div>
+      <div class="want"><h4>★ 想看</h4><p>${list('want')}</p></div>
+      <div class="busy"><h4>✕ 無法到場</h4><p>${list('busy')}</p></div>
+    </div>
+    ${marks.length ? `<div class="sec-title">時間標記</div>
+      <ul class="marks">${marks.map((c) => `<li><span>${fmtTag(c.tagAt)}</span><span><b>${esc(c.user)}</b>：${esc(c.text)}</span></li>`).join('')}</ul>` : ''}
+    <div class="sec-title">留言（${comments.length}）</div>
+    ${comments.length ? `<ul class="comments">${comments.map((c) => `<li>
+        <div class="hd"><b>${esc(c.user)}</b><span>${fmtStamp(c.createdAt)}</span>
+          ${c.user === S.me ? `<button class="link-btn" data-del-c="${esc(c.id)}">刪除</button>` : ''}</div>
+        <div class="tx">${esc(c.text)}</div>
+        ${c.tagAt ? `<span class="tag">標記 ${fmtTag(c.tagAt)}</span>` : ''}
+      </li>`).join('')}</ul>` : '<div class="empty">還沒有留言，第一個說點什麼吧。</div>'}
+    <form class="cform" id="cForm">
+      <label class="sr-only" for="cText">留言內容</label>
+      <textarea id="cText" maxlength="500" placeholder="留言給大家，例如：我多一張票" required></textarea>
+      <div class="row">
+        <label for="cTag">標記時間（可不填）</label>
+        <input type="datetime-local" id="cTag" value="">
+      </div>
+      <div class="err" id="cErr"></div>
+      <div><button class="primary" id="cSend" type="submit">送出留言</button></div>
+    </form>`;
+  // 自動更新重繪時，保留還沒送出的留言草稿
+  $('cText').value = draft;
+  $('cTag').value = draftTag;
+}
+
+$('gameInner').addEventListener('click', async (e) => {
+  if (e.target.closest('[data-close]')) return history.back();
+  const st = e.target.closest('.st');
+  if (st) { await toggleStatus(st); return openGame(S.openGameId, { keepScroll: true }); }
+  const del = e.target.closest('[data-del-c]');
+  if (del) {
+    const ok = await confirmBox('刪除留言', '確定要刪除這則留言嗎？', '刪除', '取消');
+    if (!ok) return;
+    try { await api('deleteComment', { comment_id: del.dataset.delC }); toast('已刪除留言'); openGame(S.openGameId, { keepScroll: true }); }
+    catch (err) { toast(err.message); }
+  }
+});
+
+$('gameInner').addEventListener('submit', async (e) => {
+  if (e.target.id !== 'cForm') return;
+  e.preventDefault();
+  const text = $('cText').value.trim();
+  const tag = $('cTag').value;
+  if (!text) { $('cErr').textContent = '請輸入留言內容'; return; }
+  $('cSend').disabled = true;
+  try {
+    const r = await api('addComment', { game_id: S.openGameId, text, tag_at: tag });
+    acceptOwnWrite(r.version);
+    $('cText').value = ''; $('cTag').value = '';
+    toast('已送出留言');
+    await openGame(S.openGameId, { keepScroll: true });
+    const sh = $('gameSheet'); sh.scrollTop = sh.scrollHeight;
+  } catch (err) {
+    $('cErr').textContent = err.message;
+    $('cSend').disabled = false;
+  }
+});
+
+function closeGame(silent) {
+  $('gameSheet').hidden = true;
+  document.body.style.overflow = '';
+  S.openGameId = null;
+  if (location.hash === '#game') history.replaceState(null, '', location.pathname + location.search);
+  if (!silent) renderAll();
+}
+window.addEventListener('popstate', () => { if (!$('gameSheet').hidden) closeGame(); });
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape' && !$('gameSheet').hidden && !document.querySelector('dialog[open]')) history.back();
+});
+
+/* ════════════ 整體 ════════════ */
+function renderAll() {
+  renderCalendar();
+  renderAgenda();
+}
+
+// 回到這個分頁時，立刻檢查一次版本
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'visible' && S.me && $('gate').hidden) checkUpdate(false);
+});
+
+/* ════════════ 示範模式：模擬後端（網址加 ?demo=1） ════════════ */
+const mock = (() => {
+  const db = { users: [], sessions: {}, leagues: [], games: [], status: [], comments: [], events: [],
+               ver: { version: 0, by: '', at: '', what: '' } };
+  const nowStr = () => { const d = new Date(); return `${ymd(d)}T${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`; };
+  const bump = (by, what) => (db.ver = { version: db.ver.version + 1, by, at: nowStr(), what });
+  db.leagues = [
+    { id: 'CPBL', name: '中華職棒', sport: 'baseball', color: '#1F5FA8', enabled: true, sort: 1 },
+    { id: 'AWB', name: '亞洲冬季棒球聯盟', sport: 'baseball', color: '#0F766E', enabled: true, sort: 1.5 },
+    { id: 'TPVL', name: '台灣職業排球聯盟', sport: 'volleyball', color: '#C2410C', enabled: true, sort: 2 },
+    { id: 'TPBL', name: '台灣職業籃球大聯盟', sport: 'basketball', color: '#7C3AED', enabled: true, sort: 3 },
+    { id: 'NPB', name: '日本職棒', sport: 'baseball', color: '#B42318', enabled: false, sort: 5 },
+  ];
+  const cpbl = [['中信兄弟', '洲際'], ['樂天桃猿', '桃園'], ['統一7-ELEVEn獅', '台南'],
+                ['富邦悍將', '新莊'], ['味全龍', '天母'], ['台鋼雄鷹', '澄清湖']];
+  const vb = [['示範排球A', 'A館'], ['示範排球B', 'B館'], ['示範排球C', 'C館'], ['示範排球D', 'D館']];
+  const bb = [['示範籃球A', 'A館'], ['示範籃球B', 'B館'], ['示範籃球C', 'C館'], ['示範籃球D', 'D館']];
+  const awb = [['中職白隊', '天母'], ['中職紅隊', '新莊'], ['示範日本隊', '天母'], ['示範韓國隊', '新莊']];
+  const base = new Date(); base.setDate(1);
+  let n = 0;
+  for (let off = -1; off <= 2; off++) {
+    const mStart = new Date(base.getFullYear(), base.getMonth() + off, 1);
+    const days = new Date(mStart.getFullYear(), mStart.getMonth() + 1, 0).getDate();
+    const month = mStart.getMonth() + 1;
+    for (let day = 1; day <= days; day++) {
+      const d = new Date(mStart.getFullYear(), mStart.getMonth(), day);
+      const ds = ymd(d); const wd = d.getDay(); const weekend = wd === 0 || wd === 6;
+      if (wd !== 1 && month >= 3 && month <= 10) {
+        const r = (((day + off * 3) % 6) + 6) % 6;
+        const order = [0, 1, 2, 3, 4, 5].map((i) => cpbl[(i + r) % 6]);
+        for (let k = 0; k < 3; k++) {
+          const away = order[k * 2][0], home = order[k * 2 + 1];
+          db.games.push({ id: `CPBL-DEMO-${++n}`, league: 'CPBL', date: ds, time: weekend ? '17:05' : '18:35', away, home: home[0], venue: home[1], note: '' });
+        }
+      }
+      if (month >= 11 && wd !== 1) {
+        for (let k = 0; k < 2; k++) {
+          const a = awb[(day + k) % 4], h = awb[(day + k + 2) % 4];
+          db.games.push({ id: `AWB-DEMO-${++n}`, league: 'AWB', date: ds, time: k ? '18:00' : '12:00', away: a[0], home: h[0], venue: h[1], note: '' });
+        }
+      }
+      if (weekend) {
+        const a = vb[day % 4], h = vb[(day + 1) % 4];
+        db.games.push({ id: `TPVL-DEMO-${++n}`, league: 'TPVL', date: ds, time: '15:00', away: a[0], home: h[0], venue: h[1], note: '' });
+        const ba = bb[day % 4], bh = bb[(day + 2) % 4];
+        db.games.push({ id: `TPBL-DEMO-${++n}`, league: 'TPBL', date: ds, time: '19:00', away: ba[0], home: bh[0], venue: bh[1], note: '' });
+      }
+    }
+  }
+  db.users.push({ name: '阿華', pin: '1111' }, { name: '小美', pin: '2222' });
+  const sample = db.games.filter((g) => g.date >= ymd(new Date())).slice(0, 6);
+  if (sample[0]) {
+    db.status.push({ user: '阿華', game_id: sample[0].id, want: true, ticket: true, busy: false });
+    db.status.push({ user: '小美', game_id: sample[0].id, want: true, ticket: false, busy: false });
+    db.comments.push({ id: 'c1', game_id: sample[0].id, user: '阿華', text: '我買到兩張內野，有人要一起嗎？', tagAt: '', createdAt: nowStr() });
+    db.comments.push({ id: 'c2', game_id: sample[0].id, user: '小美', text: '我要！在一號門集合', tagAt: `${sample[0].date}T${sample[0].time > '12:00' ? '16:30' : '11:15'}`, createdAt: nowStr() });
+  }
+  if (sample[4]) db.status.push({ user: '小美', game_id: sample[4].id, want: false, ticket: false, busy: true });
+  db.events.push({ id: 'e1', date: sample[2]?.date || ymd(new Date()), time: '12:00', title: '開賣日，記得搶票', note: '官網售票系統', createdBy: '阿華', createdAt: nowStr() });
+  bump('小美', '新增了留言');
+
+  const fail = (error, message) => ({ ok: false, error, message });
+  const find = (name) => db.users.find((u) => u.name.toLowerCase() === String(name || '').trim().toLowerCase());
+  const peopleOf = (gid) => {
+    const p = { want: [], ticket: [], busy: [] };
+    db.status.filter((s) => s.game_id === gid).forEach((s) => { ['want', 'ticket', 'busy'].forEach((k) => s[k] && p[k].push(s.user)); });
+    return p;
+  };
+  const sortDT = (a, b) => ((a.date + (a.time || '99')) < (b.date + (b.time || '99')) ? -1 : 1);
+  const newToken = (name) => { const t = Math.random().toString(36).slice(2) + Date.now(); db.sessions[t] = name; return t; };
+  const WRITE = { setStatus: 1, addComment: 1, deleteComment: 1, addEvent: 1, deleteEvent: 1 };
+
+  return function (req) {
+    const clone = (o) => JSON.parse(JSON.stringify(o));
+    if (req.code !== 'demo') return fail('BAD_CODE', '通關密語不正確');
+    const user = db.sessions[req.token];
+    if (WRITE[req.action] && !user) return fail('NO_SESSION', '請重新登入');
+    const name = String(req.name || '').trim();
+    const v = () => clone(db.ver);
+    switch (req.action) {
+      case 'verifyCode': return { ok: true };
+      case 'init': return { ok: true, leagues: clone(db.leagues), version: v(), refreshSec: 30, theme: { light: {}, dark: {} } };
+      case 'version': return { ok: true, version: v(), refreshSec: 30, theme: { light: {}, dark: {} } };
+      case 'checkName': {
+        if (!name) return fail('NAME_EMPTY', '請輸入名稱');
+        const u = find(name); return { ok: true, exists: !!u, name: u ? u.name : name, hasPin: !!(u && u.pin) };
+      }
+      case 'register':
+        if (find(name)) return fail('NAME_TAKEN', '名稱已使用，請換個名稱');
+        db.users.push({ name, pin: req.pin });
+        return { ok: true, name, token: newToken(name), version: bump(name, '加入了行事曆') };
+      case 'login': {
+        const u = find(name);
+        if (!u) return fail('NO_USER', '找不到這個名稱');
+        if (u.pin && u.pin !== req.pin && name !== '阿華' && name !== '小美') return fail('BAD_PIN', 'PIN 不正確');
+        if (!u.pin) u.pin = req.pin;
+        return { ok: true, name: u.name, token: newToken(u.name) };
+      }
+      case 'me': return user ? { ok: true, name: user } : fail('NO_SESSION', '請重新登入');
+      case 'logout': delete db.sessions[req.token]; return { ok: true };
+      case 'month': {
+        const games = db.games.filter((g) => g.date.startsWith(req.ym)).sort(sortDT);
+        const people = {}, commentCounts = {};
+        games.forEach((g) => {
+          const p = peopleOf(g.id); if (p.want.length + p.ticket.length + p.busy.length) people[g.id] = p;
+          const c = db.comments.filter((x) => x.game_id === g.id).length; if (c) commentCounts[g.id] = c;
+        });
+        return { ok: true, games: clone(games), people, commentCounts, events: clone(db.events.filter((e) => e.date.startsWith(req.ym)).sort(sortDT)), version: v() };
+      }
+      case 'game': {
+        const g = db.games.find((x) => x.id === req.game_id);
+        if (!g) return fail('NO_GAME', '找不到這場比賽');
+        return { ok: true, game: clone(g), people: peopleOf(g.id), comments: clone(db.comments.filter((c) => c.game_id === g.id)), version: v() };
+      }
+      case 'setStatus': {
+        let s = db.status.find((x) => x.user === user && x.game_id === req.game_id);
+        if (!s) db.status.push(s = { user, game_id: req.game_id, want: false, ticket: false, busy: false });
+        s[req.field] = !!req.value;
+        if (req.field === 'busy' && req.value) { s.want = false; s.ticket = false; }
+        if (req.field !== 'busy' && req.value) s.busy = false;
+        return { ok: true, status: { want: s.want, ticket: s.ticket, busy: s.busy }, version: bump(user, '更新了觀賽狀態') };
+      }
+      case 'addComment':
+        if (!String(req.text || '').trim()) return fail('EMPTY', '留言不能是空白');
+        db.comments.push({ id: 'c' + Date.now(), game_id: req.game_id, user, text: req.text.trim(), tagAt: req.tag_at || '', createdAt: nowStr() });
+        return { ok: true, version: bump(user, '新增了留言') };
+      case 'deleteComment': {
+        const i = db.comments.findIndex((c) => c.id === req.comment_id);
+        if (i < 0) return fail('NOT_FOUND', '留言已不存在');
+        if (db.comments[i].user !== user) return fail('FORBIDDEN', '只能刪除自己的留言');
+        db.comments.splice(i, 1); return { ok: true, version: bump(user, '刪除了留言') };
+      }
+      case 'addEvent':
+        if (!req.date) return fail('BAD_DATE', '請選擇日期');
+        if (!req.title) return fail('EMPTY', '請輸入事項名稱');
+        db.events.push({ id: 'e' + Date.now(), date: req.date, time: req.time || '', title: req.title, note: req.note || '', createdBy: user, createdAt: nowStr() });
+        return { ok: true, version: bump(user, '新增了事項') };
+      case 'deleteEvent': {
+        const i = db.events.findIndex((e) => e.id === req.event_id);
+        if (i < 0) return fail('NOT_FOUND', '事項已不存在');
+        if (db.events[i].createdBy !== user) return fail('FORBIDDEN', '只能刪除自己新增的事項');
+        db.events.splice(i, 1); return { ok: true, version: bump(user, '刪除了事項') };
+      }
+      default: return fail('UNKNOWN_ACTION', '不支援的動作');
+    }
+  };
+})();
+function mockCall(req) { return mock(req); }
+
+boot();
+</script>
+</body>
+</html>
