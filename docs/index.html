@@ -273,6 +273,9 @@ button { cursor: pointer; }
 .game .meta { display: flex; flex-wrap: wrap; gap: 4px 10px; font-size: 12.5px; color: var(--muted); }
 .game .meta .lg { color: var(--ink); font-weight: 600; }
 .game .meta .tm { font: 600 15px/1.2 var(--num); color: var(--ink); }
+.game-no { font-size: 12.5px; color: var(--muted); }
+.game-no b { font: 600 15px/1.2 var(--num); color: var(--ink); font-variant-numeric: tabular-nums; }
+.game-id { font-size: 12px; color: var(--muted); margin-top: 2px; font-family: ui-monospace, Menlo, Consolas, monospace; }
 .teams {
   display: grid; grid-template-columns: 1fr auto 1fr; align-items: center;
   gap: 8px; margin: 6px 0 8px;
@@ -576,6 +579,7 @@ select {
       <option value="180">每 3 分鐘</option>
       <option value="300">每 5 分鐘</option>
       <option value="600">每 10 分鐘</option>
+      <option value="1800">每 30 分鐘</option>
     </select>
     <p class="hint" id="refreshHint">定時檢查資料版本，若有人更新才載入新資料。</p>
   </div>
@@ -630,8 +634,8 @@ const S = {
   loadedYm: null,
   openGameId: null,
   version: null,          // 目前畫面資料的版本資訊
-  serverRefresh: 60,      // 試算表設定的預設更新間隔
-  refreshSec: 60,         // 實際使用的更新間隔
+  serverRefresh: 600,      // 試算表設定的預設更新間隔
+  refreshSec: 600,         // 實際使用的更新間隔
   pollTimer: null,
   lastCheck: null,
   gateStep: null,
@@ -665,6 +669,11 @@ function fmtTag(s) { // 2026-11-01T17:30 → 11/01（日）17:30
   if (!m) return esc(s || '');
   const wd = WD[new Date(+m[1], +m[2] - 1, +m[3]).getDay()];
   return `${m[2]}/${m[3]}（${wd}）<span class="tm">${m[4]}</span>`;
+}
+/** 從 game_id 取出場次編號：AWB-2026-P-22 → 22；自動產生的 ID（結尾是隊名）不顯示 */
+function gameNo(id) {
+  const m = String(id || '').match(/-([A-Za-z]{0,2}\d{1,5}[A-Za-z]?)$/);
+  return m ? m[1] : '';
 }
 function league(id) { return S.leagues.find((l) => l.id === id) || { id, name: id, color: '#667085' }; }
 function toast(msg) {
@@ -733,8 +742,8 @@ function clearSession() { S.token = null; S.me = null; store.del(LS.token); }
 /* ════════════ 入口畫面 ════════════ */
 const GATE = {
   invite: {
-    title: '歡迎來到J個行事曆',
-    text: '這個球賽行事曆只開放給受邀的朋友，請用邀請連結開啟。',
+    title: '需要邀請連結',
+    text: '這個球賽行事曆需要邀請連結開啟。',
     fields: '<label class="field"><span>邀請連結</span><input type="text" id="gInvite" autocomplete="off" spellcheck="false" required></label>',
     submit: '繼續',
   },
@@ -763,7 +772,7 @@ const GATE = {
              <label class="field"><span>再輸入一次</span><input class="pin-input" type="password" id="gPin2" inputmode="numeric" pattern="\\d{4}" maxlength="4" autocomplete="new-password" required></label>`,
     submit: '完成',
     back: true,
-    foot: '別人知道你的名稱也無法冒用，除非他也知道 PIN。',
+    foot: '設定PIN只是為了避免名稱遭誤用/冒用。',
   },
 };
 
@@ -822,9 +831,9 @@ $('gateForm').addEventListener('submit', async (e) => {
         const r = await api('checkName', { name });
         if (!r.exists) { showGate('pinNew', { name, mode: 'register', text: `為「${name}」設定一組 PIN，換裝置登入時需要輸入。` }); break; }
         $('gate').hidden = true;
-        const mine = await confirmBox('這個名稱已經有人使用', `「${r.name}」是你本人嗎？`, '是，是我本人', '不是');
+        const mine = await confirmBox('Ｊ個名稱已經有人使用', `「${r.name}」Ｊ個是你本人嗎？`, '是，是我本人', '不是');
         $('gate').hidden = false;
-        if (!mine) { showGate('name', { prefill: name, err: '名稱已使用，請換個名稱' }); break; }
+        if (!mine) { showGate('name', { prefill: name, err: 'Ｊ個名稱已使用，請換個名稱' }); break; }
         if (r.hasPin) showGate('pin', { name: r.name, text: `請輸入「${r.name}」的 PIN。` });
         else showGate('pinNew', { name: r.name, mode: 'legacy', text: `「${r.name}」還沒有設定 PIN，請設定一組。` });
         break;
@@ -833,7 +842,7 @@ $('gateForm').addEventListener('submit', async (e) => {
         const pin = $('gPin').value.trim();
         if (!/^\d{4}$/.test(pin)) return err('PIN 必須是 4 位數字');
         const r = await api('login', { name: S.gateCtx.name, pin });
-        signedIn(r.name, r.token, `歡迎回來，${r.name}`);
+        signedIn(r.name, r.token, `啾～歡迎回來，${r.name}`);
         break;
       }
       case 'pinNew': {
@@ -847,7 +856,7 @@ $('gateForm').addEventListener('submit', async (e) => {
       }
     }
   } catch (ex) {
-    if (ex.code === 'NAME_TAKEN') showGate('name', { prefill: S.gateCtx.name, err: '名稱已使用，請換個名稱' });
+    if (ex.code === 'NAME_TAKEN') showGate('name', { prefill: S.gateCtx.name, err: 'Ｊ個名稱已使用，請換個名稱' });
     else err(ex.message);
   } finally {
     btn.disabled = false;
@@ -1180,6 +1189,7 @@ function gameCard(g) {
   return `<article class="game ${st.ticket ? 'has-ticket' : ''}" style="--lc:${esc(lg.color)}">
     <div class="meta">
       <span class="lg">${esc(lg.name)}</span>
+      ${gameNo(g.id) ? `<span class="game-no" title="${esc(g.id)}">編號 <b>${esc(gameNo(g.id))}</b></span>` : ''}
       ${g.time ? `<span class="tm">${esc(g.time)}</span>` : '<span>時間未定</span>'}
       ${g.venue ? `<span>${esc(g.venue)}</span>` : ''}
       ${g.note ? `<span>${esc(g.note)}</span>` : ''}
@@ -1352,6 +1362,8 @@ function renderGame({ game: g, people: p, comments }) {
         <div>${esc(g.away)}<small>客隊</small></div><div class="vs">VS</div><div class="home">${esc(g.home)}<small>主隊</small></div>
       </div>
       ${g.note ? `<div class="when">${esc(g.note)}</div>` : ''}
+      ${gameNo(g.id) ? `<div class="game-no">場次編號 <b>${esc(gameNo(g.id))}</b></div>` : ''}
+      <div class="game-id">${esc(g.id)}</div>
     </div>
     ${statusButtons(g.id, st)}
     <div class="sec-title">大家的狀態</div>
@@ -1472,20 +1484,20 @@ const mock = (() => {
         const order = [0, 1, 2, 3, 4, 5].map((i) => cpbl[(i + r) % 6]);
         for (let k = 0; k < 3; k++) {
           const away = order[k * 2][0], home = order[k * 2 + 1];
-          db.games.push({ id: `CPBL-DEMO-${++n}`, league: 'CPBL', date: ds, time: weekend ? '17:05' : '18:35', away, home: home[0], venue: home[1], note: '' });
+          db.games.push({ id: `CPBL-${d.getFullYear()}-A-${++n}`, league: 'CPBL', date: ds, time: weekend ? '17:05' : '18:35', away, home: home[0], venue: home[1], note: '' });
         }
       }
       if (month >= 11 && wd !== 1) {
         for (let k = 0; k < 2; k++) {
           const a = awb[(day + k) % 4], h = awb[(day + k + 2) % 4];
-          db.games.push({ id: `AWB-DEMO-${++n}`, league: 'AWB', date: ds, time: k ? '18:00' : '12:00', away: a[0], home: h[0], venue: h[1], note: '' });
+          db.games.push({ id: `AWB-${d.getFullYear()}-P-${++n}`, league: 'AWB', date: ds, time: k ? '18:00' : '12:00', away: a[0], home: h[0], venue: h[1], note: '' });
         }
       }
       if (weekend) {
         const a = vb[day % 4], h = vb[(day + 1) % 4];
-        db.games.push({ id: `TPVL-DEMO-${++n}`, league: 'TPVL', date: ds, time: '15:00', away: a[0], home: h[0], venue: h[1], note: '' });
+        db.games.push({ id: `TPVL-${++n}`, league: 'TPVL', date: ds, time: '15:00', away: a[0], home: h[0], venue: h[1], note: '' });
         const ba = bb[day % 4], bh = bb[(day + 2) % 4];
-        db.games.push({ id: `TPBL-DEMO-${++n}`, league: 'TPBL', date: ds, time: '19:00', away: ba[0], home: bh[0], venue: bh[1], note: '' });
+        db.games.push({ id: `TPBL-${d.getFullYear()}-${ds}-1900-${bh[0]}`, league: 'TPBL', date: ds, time: '19:00', away: ba[0], home: bh[0], venue: bh[1], note: '' });
       }
     }
   }
