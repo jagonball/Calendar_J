@@ -274,6 +274,10 @@ button { cursor: pointer; }
 .game .meta .lg { color: var(--ink); font-weight: 600; }
 .game .meta .tm { font: 600 15px/1.2 var(--num); color: var(--ink); }
 .game-no { font-size: 12.5px; color: var(--muted); }
+/* 聯盟色依淺色／深色模式切換 */
+[style*="--lcl"] { --lc: var(--lcl); }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) [style*="--lcl"] { --lc: var(--lcd); } }
+:root[data-theme="dark"] [style*="--lcl"] { --lc: var(--lcd); }
 .tsw {
   display: inline-block; width: 11px; height: 11px; border-radius: 3px;
   background: linear-gradient(135deg, var(--t1) 50%, var(--t2) 50%);
@@ -709,9 +713,11 @@ function fmtTag(s) { // 2026-11-01T17:30 → 11/01（日）17:30
 /** 從 game_id 取出場次編號：AWB-2026-P-22 → 22；自動產生的 ID（結尾是隊名）不顯示 */
 function gameNo(id) {
   const m = String(id || '').match(/-([A-Za-z]{0,2}\d{1,5}[A-Za-z]?)$/);
-  return m ? m[1] : '';
+  return m ? m[1].toUpperCase() : '';
 }
-function league(id) { return S.leagues.find((l) => l.id === id) || { id, name: id, color: '#667085' }; }
+function league(id) { return S.leagues.find((l) => l.id === id) || { id, name: id, color: '#667085', colorDark: '#98A2B3' }; }
+/** 聯盟色：淺色模式用 color、深色模式用 colorDark（CSS 依目前模式選用） */
+function lcStyle(lg) { return `--lcl:${esc(lg.color)};--lcd:${esc(lg.colorDark || lg.color)}`; }
 function toast(msg) {
   const t = $('toast');
   t.textContent = msg;
@@ -1116,7 +1122,7 @@ async function loadMonth({ quiet = false } = {}) {
 /* ════════════ 畫面：篩選 ════════════ */
 function renderFilters() {
   $('filters').innerHTML = S.leagues.map((l) => `
-    <button class="chip" style="--lc:${esc(l.color)}" data-lg="${esc(l.id)}" aria-pressed="${!S.hidden.has(l.id)}">
+    <button class="chip" style="${lcStyle(l)}" data-lg="${esc(l.id)}" aria-pressed="${!S.hidden.has(l.id)}">
       <span class="sw"></span>${esc(l.name)}
     </button>`).join('');
 }
@@ -1171,7 +1177,7 @@ function renderCalendar() {
       <span class="d">${d.getDate()}</span>
       ${shown.map((g) => {
         const k = statusKey(myStatus(g.id));
-        return `<span class="mk ${k === 'ticket' ? 'mine-ticket' : ''}" style="--lc:${esc(league(g.league).color)}">
+        return `<span class="mk ${k === 'ticket' ? 'mine-ticket' : ''}" style="${lcStyle(league(g.league))}">
           <span class="t">${esc(shortTeam(g.away))} ${esc(shortTeam(g.home))}</span>
           ${k ? `<span class="s ${k}">${GLYPH[k]}</span>` : ''}</span>`;
       }).join('')}
@@ -1224,7 +1230,7 @@ function gameCard(g) {
   const lg = league(g.league);
   const cc = S.data.commentCounts[g.id] || 0;
   const whoLine = (k) => p[k].length ? `<div><b>${LABEL[k]}</b>　${p[k].map(esc).join('、')}</div>` : '';
-  return `<article class="game ${st.ticket ? 'has-ticket' : ''}" style="--lc:${esc(lg.color)}">
+  return `<article class="game ${st.ticket ? 'has-ticket' : ''}" style="${lcStyle(lg)}">
     <div class="meta">
       <span class="lg">${esc(lg.name)}</span>
       ${gameNo(g.id) ? `<span class="game-no" title="${esc(g.id)}">編號 <b>${esc(gameNo(g.id))}</b></span>` : ''}
@@ -1393,7 +1399,7 @@ function renderGame({ game: g, people: p, comments }) {
   const draftTag = $('cTag')?.value || '';
   $('gameInner').innerHTML = `
     <button class="icon-btn back" data-close>‹ 返回行事曆</button>
-    <div class="detail-head" style="--lc:${esc(lg.color)}">
+    <div class="detail-head" style="${lcStyle(lg)}">
       <div class="when">${esc(lg.name)}　${d.getMonth() + 1}月${d.getDate()}日（${WD[d.getDay()]}）
         ${g.time ? `<span class="tm">${esc(g.time)}</span>` : '時間未定'}　${esc(g.venue || '')}</div>
       <div class="teams">
@@ -1497,15 +1503,16 @@ const mock = (() => {
   const nowStr = () => { const d = new Date(); return `${ymd(d)}T${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`; };
   const bump = (by, what) => (db.ver = { version: db.ver.version + 1, by, at: nowStr(), what });
   db.leagues = [
-    { id: 'CPBL', name: '中華職棒', sport: 'baseball', color: '#1F5FA8', enabled: true, sort: 1 },
-    { id: 'AWB', name: '亞洲冬季棒球聯盟', sport: 'baseball', color: '#0F766E', enabled: true, sort: 1.5 },
-    { id: 'TPVL', name: '台灣職業排球聯盟', sport: 'volleyball', color: '#C2410C', enabled: true, sort: 2 },
-    { id: 'TPBL', name: '台灣職業籃球大聯盟', sport: 'basketball', color: '#7C3AED', enabled: true, sort: 3 },
-    { id: 'NPB', name: '日本職棒', sport: 'baseball', color: '#B42318', enabled: false, sort: 5 },
+    { id: 'CPBL', name: '中華職棒', sport: 'baseball', color: '#1F5FA8', colorDark: '#7DB0EA', enabled: true, sort: 1 },
+    { id: 'AWB', name: '亞洲冬季棒球聯盟', sport: 'baseball', color: '#16203F', colorDark: '#A2CCEC', enabled: true, sort: 1.5 },
+    { id: 'TPVL', name: '台灣職業排球聯盟', sport: 'volleyball', color: '#054D36', colorDark: '#2E9B73', enabled: true, sort: 2 },
+    { id: 'TPBL', name: '台灣職業籃球大聯盟', sport: 'basketball', color: '#003C64', colorDark: '#587E98', enabled: true, sort: 3 },
+    { id: 'NPB', name: '日本職棒', sport: 'baseball', color: '#0190DA', colorDark: '#0190DA', enabled: false, sort: 5 },
   ];
   const cpbl = [['中信兄弟', '洲際'], ['樂天桃猿', '桃園'], ['統一7-ELEVEn獅', '台南'],
                 ['富邦悍將', '新莊'], ['味全龍', '天母'], ['台鋼雄鷹', '澄清湖']];
-  const vb = [['示範排球A', 'A館'], ['示範排球B', 'B館'], ['示範排球C', 'C館'], ['示範排球D', 'D館']];
+  const vb = [['臺北伊斯特', '國立臺灣大學綜合體育館'], ['桃園雲豹飛將', '中原大學體育館'], ['新竹可利工程師', '新竹市立體育館'],
+              ['臺中連莊', '國立臺灣體育運動大學體育館'], ['台鋼天鷹', '高雄市鳳山體育館']];
   const bb = [['示範籃球A', 'A館'], ['示範籃球B', 'B館'], ['示範籃球C', 'C館'], ['示範籃球D', 'D館']];
   const awb = [['大學明星', '嘉義市'], ['日本社會人', '亞太主'], ['台灣海洋', '亞太主'],
                ['台灣山林', '嘉義市'], ['日職聯隊', '亞太主'], ['韓職聯隊', '亞太主']];
@@ -1516,6 +1523,11 @@ const mock = (() => {
     { team: '韓職聯隊', short: '韓職', color: '#1B2B52', color2: '', full: '韓國職棒', league: 'AWB', aliases: [] },
     { team: '日職聯隊', short: '日職', color: '#1586C9', color2: '#C9171D', full: 'NPB日本職棒', league: 'AWB', aliases: [] },
     { team: '日本社會人', short: '日本', color: '#005BAC', color2: '#E8371A', full: '日本社會人隊', league: 'AWB', aliases: [] },
+    { team: '臺北伊斯特', short: '伊斯特', color: '#E85C05', color2: '', full: '臺北伊斯特', league: 'TPVL', aliases: [] },
+    { team: '桃園雲豹飛將', short: '雲豹', color: '#CC859C', color2: '#7A7A7A', full: '桃園雲豹飛將', league: 'TPVL', aliases: [] },
+    { team: '新竹可利工程師', short: '工程師', color: '#904087', color2: '', full: '新竹可利工程師', league: 'TPVL', aliases: [] },
+    { team: '臺中連莊', short: '連莊', color: '#0DA85F', color2: '', full: '臺中連莊', league: 'TPVL', aliases: [] },
+    { team: '台鋼天鷹', short: '天鷹', color: '#2081C3', color2: '', full: '台鋼天鷹', league: 'TPVL', aliases: [] },
   ];
   const base = new Date(); base.setDate(1);
   let n = 0;
@@ -1541,7 +1553,7 @@ const mock = (() => {
         }
       }
       if (weekend) {
-        const a = vb[day % 4], h = vb[(day + 1) % 4];
+        const a = vb[day % 5], h = vb[(day + 2) % 5];
         db.games.push({ id: `TPVL-${++n}`, league: 'TPVL', date: ds, time: '15:00', away: a[0], home: h[0], venue: h[1], note: '' });
         const ba = bb[day % 4], bh = bb[(day + 2) % 4];
         db.games.push({ id: `TPBL-${d.getFullYear()}-${ds}-1900-${bh[0]}`, league: 'TPBL', date: ds, time: '19:00', away: ba[0], home: bh[0], venue: bh[1], note: '' });
