@@ -506,6 +506,8 @@ select {
   <strong>示範模式</strong>：資料只存在這個分頁，重新整理就會消失。通關密語是 demo，PIN 輸入任意 4 位數字。
 </div>
 
+<div class="demo-banner" id="apiBanner" hidden role="alert"></div>
+
 <nav class="filters" id="filters" aria-label="顯示的聯盟"></nav>
 
 <main class="layout">
@@ -620,6 +622,8 @@ select {
  * 示範模式：在網址加上 ?demo=1
  */
 const API_URL = '';
+// 這版網頁需要的後端版本（Code.gs 的 API_VERSION）；後端較舊時會提醒重新部署
+const MIN_API_VERSION = '2026.11.18';
 
 /* ════════════ 狀態 ════════════ */
 const LS = {
@@ -945,6 +949,7 @@ async function afterCode() {
     const r = await api('init');
     S.leagues = r.leagues;
     S.serverRefresh = r.refreshSec;
+    S.apiVersion = r.apiVersion || '';
     applyColors(r.theme);
     setTeams(r.teams);
     const saved = store.get(LS.hidden);
@@ -971,8 +976,19 @@ async function afterCode() {
   showGate('name', { prefill: store.get(LS.name) || '' });
 }
 
+function checkApiVersion() {
+  if (S.api === 'demo') return;
+  const old = !S.apiVersion || S.apiVersion < MIN_API_VERSION;
+  const b = $('apiBanner');
+  b.hidden = !old;
+  if (old) {
+    b.innerHTML = `<strong>後端程式不是最新版</strong>（目前 ${esc(S.apiVersion || '舊版')}，需要 ${MIN_API_VERSION}）：部分功能（例如深色模式的聯盟顏色）不會生效。請管理者貼上新的 Code.gs，到「部署 → 管理部署作業 → 編輯 → 版本：新版本 → 部署」。`;
+  }
+}
+
 function enterApp() {
   hideGate();
+  checkApiVersion();
   $('meBtn').textContent = S.me;
   renderAll();
   loadMonth();
@@ -991,7 +1007,7 @@ function renderVersion() {
   if (!v) return;
   const who = v.by ? `${esc(v.by)} 於 ${fmtStamp(v.at)} ${esc(v.what)}` : '尚無更新紀錄';
   $('verText').innerHTML = `資料版本 <b>${v.version}</b>　${who}`;
-  $('setVer').innerHTML = `版本 <b>${v.version}</b><br>${who}`;
+  $('setVer').innerHTML = `版本 <b>${v.version}</b><br>${who}${S.apiVersion ? `<br><span style="color:var(--muted);font-size:12.5px">後端程式 ${esc(S.apiVersion)}</span>` : ''}`;
   renderAutoText();
 }
 
@@ -1592,7 +1608,7 @@ const mock = (() => {
     const v = () => clone(db.ver);
     switch (req.action) {
       case 'verifyCode': return { ok: true };
-      case 'init': return { ok: true, leagues: clone(db.leagues), version: v(), refreshSec: 30, theme: { light: {}, dark: {} }, teams: clone(teams) };
+      case 'init': return { ok: true, leagues: clone(db.leagues), version: v(), refreshSec: 30, theme: { light: {}, dark: {} }, teams: clone(teams), apiVersion: '2026.11.18' };
       case 'version': return { ok: true, version: v(), refreshSec: 30, theme: { light: {}, dark: {} }, teams: clone(teams) };
       case 'checkName': {
         if (!name) return fail('NAME_EMPTY', '請輸入名稱');

@@ -13,6 +13,7 @@ baseball-calendar/
 └── scripts/
     ├── fetch_cpbl.py        抓中職／冬盟賽程 → CSV
     ├── fetch_tpvl.py        抓 TPVL 排球賽程 → CSV
+    ├── fetch_pleague.py     抓 P. LEAGUE+ 賽程（例行賽＋EASL）→ CSV
     ├── upload_games.py      把任何聯盟的 CSV 匯入試算表
     ├── games_template.csv   其他聯盟手動整理用的範本
     └── requirements.txt
@@ -46,7 +47,7 @@ baseball-calendar/
 2. 執行身分：**我**；存取權：**所有人**。
 3. 複製網址（`https://script.google.com/macros/s/……/exec`），貼到 Settings 頁的 **API 網址**。
 
-之後修改 `Code.gs`，要到「部署 → 管理部署作業 → 編輯（鉛筆）→ 版本選『新版本』→ 部署」，網址不會變。直接「新增部署作業」會產生新網址，邀請連結也要重新產生。
+之後修改 `Code.gs`，要到「部署 → 管理部署作業 → 編輯（鉛筆）→ 版本選『新版本』→ 部署」，網址不會變。網頁會比對 Code.gs 開頭的 `API_VERSION`，後端太舊時會在頁面上方提醒；直接在瀏覽器打開 API 網址也能看到目前的版本。直接「新增部署作業」會產生新網址，邀請連結也要重新產生。
 
 ## 三、發佈前端
 
@@ -77,6 +78,10 @@ python scripts/upload_games.py --url <API網址> --key <ADMIN_KEY> awb_2026.csv
 # 台灣職業排球聯盟（tpvl.tw）
 python scripts/fetch_tpvl.py --out tpvl.csv
 python scripts/upload_games.py --url <API網址> --key <ADMIN_KEY> tpvl.csv
+
+# P. LEAGUE+（例行賽＋EASL 東亞超級聯賽）
+python scripts/fetch_pleague.py --out plg.csv
+python scripts/upload_games.py --url <API網址> --key <ADMIN_KEY> plg.csv
 ```
 
 匯入賽程用 ADMIN_KEY，不需要群組通關密語。匯入後資料版本會更新，大家的網頁會自動載入。
@@ -84,6 +89,8 @@ python scripts/upload_games.py --url <API網址> --key <ADMIN_KEY> tpvl.csv
 延賽改期時，重新執行抓取與匯入即可：`game_id` 用官方場次編號，匯入時會把同一場改成新日期。中職季後賽可加 `--kinds E,C`。中職／冬盟網站若改版導致抓不到，加上 `--dump-raw raw.json --dump-html page.html` 把原始資料存下來檢查。
 
 `fetch_tpvl.py` 解析 tpvl.tw 賽程頁的比賽列表（每場的編號、時間、主客隊、場館、賽事類別），會自動翻完「接下來的比賽」的所有分頁，場次代碼用網站的比賽網址，例如 `TPVL-2026-27-g17`（網頁顯示「編號 G17」）。其他賽季加 `--season 2025-26`。網站改版找不到列表時，會改從內嵌 JSON 自動辨識，或加 `--browser` 用瀏覽器模式。抓不到時加上 `--dump tpvl_raw` 存下原始資料檢查。匯入前建議先打開 CSV 確認。
+
+`fetch_pleague.py` 會同時抓例行賽與 EASL 兩個頁面（`--only regular` 或 `--only easl` 只抓一種）。它解析網站的比賽列表：隊名用網站球隊選單上的完整名稱（例如「臺北富邦勇士」），場次代碼像 `PLG-2026-27-G02`、`PLG-EASL-2026-27-G05`（網頁顯示「編號 G02」）。EASL 頁面列出所有 EASL 比賽，預設只保留有 P. LEAGUE+ 球隊的場次，加 `--easl-all` 保留全部；EASL 的比賽歸在 PLG 聯盟，備註寫「EASL」，時間為網站顯示的台灣時間。加上 `--teams-out plg_teams.csv` 會另外輸出網站上的球隊縮寫（勇士、領航猿、黃金國王…），可直接貼到 Teams 工作表。網站改版找不到列表時，會改用備用的自動辨識；抓不到時用 `--dump plg_raw` 存下原始網頁檢查。需要和 `fetch_tpvl.py` 放在同一個資料夾。
 
 **場次編號**：網頁會從 game_id 最後一段取出編號顯示，例如 `AWB-2026-P-22` 顯示「編號 22」、`TPVL-G7` 顯示「編號 G7」。自行整理 CSV 時，把官方編號放在 game_id 最後一段（例如 `TPBL-2026-35`）就會顯示；game_id 留空自動產生的不會顯示編號。
 
@@ -120,7 +127,7 @@ Teams 工作表設定每支球隊在網頁上的顯示方式：
 | league | 所屬聯盟代碼（方便整理，不影響顯示） |
 | aliases | 其他寫法，逗號分隔。賽程上的隊名符合 team、full_name 或任一別名都會對應到這一列 |
 
-`setup()` 已預先填好冬盟六隊、TPVL 五隊（縮寫與從隊徽取出的顏色）和中職六隊的縮寫。之後新增球隊直接加一列即可；Teams 沒有的隊名，月曆會取前兩個字當縮寫。修改後，朋友的網頁在下次自動更新時就會套用。
+`setup()` 已預先填好冬盟六隊、TPVL 五隊（縮寫與從隊徽取出的顏色），以及中職六隊、P. LEAGUE+ 四隊、本季 EASL 其他九隊的縮寫（含英文隊名當別名）。之後新增球隊直接加一列即可；Teams 沒有的隊名，月曆會取前兩個字當縮寫。修改後，朋友的網頁在下次自動更新時就會套用。
 
 ## 九、日常管理
 
