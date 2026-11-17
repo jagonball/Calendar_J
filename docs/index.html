@@ -274,6 +274,15 @@ button { cursor: pointer; }
 .game .meta .lg { color: var(--ink); font-weight: 600; }
 .game .meta .tm { font: 600 15px/1.2 var(--num); color: var(--ink); }
 .game-no { font-size: 12.5px; color: var(--muted); }
+.tsw {
+  display: inline-block; width: 11px; height: 11px; border-radius: 3px;
+  background: linear-gradient(135deg, var(--t1) 50%, var(--t2) 50%);
+  box-shadow: 0 0 0 1px var(--line);
+  vertical-align: 1px;
+}
+.teams > div:first-child .tsw { margin-right: 6px; }
+.teams .home .tsw { margin-left: 6px; }
+.tfull { display: block; font-size: 12px; font-weight: 400; color: var(--muted); }
 .game-no b { font: 600 15px/1.2 var(--num); color: var(--ink); font-variant-numeric: tabular-nums; }
 .game-id { font-size: 12px; color: var(--muted); margin-top: 2px; font-family: ui-monospace, Menlo, Consolas, monospace; }
 .teams {
@@ -658,7 +667,34 @@ function parseYmd(s) { const [y, m, d] = s.split('-').map(Number); return new Da
 function esc(s) {
   return String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 }
-function shortTeam(t) { return SHORT[t] || (t.length > 3 ? t.slice(0, 2) : t); }
+/** 球隊資料來自試算表 Teams 頁：以隊名、全名或別名都能對應 */
+function setTeams(list) {
+  if (!Array.isArray(list)) return false;
+  const json = JSON.stringify(list);
+  if (json === S.teamsJson) return false;
+  S.teamsJson = json;
+  S.teamMap = {};
+  list.forEach((t) => [t.team, t.full, ...(t.aliases || [])].filter(Boolean)
+    .forEach((n) => { S.teamMap[n.trim().toLowerCase()] = t; }));
+  return true;
+}
+function teamInfo(name) { return (S.teamMap || {})[String(name || '').trim().toLowerCase()]; }
+function shortTeam(t) {
+  const info = teamInfo(t);
+  if (info && info.short) return info.short;
+  return SHORT[t] || (t.length > 3 ? t.slice(0, 2) : t);
+}
+/** 球隊代表色小方塊；有兩個顏色時斜切成兩半 */
+function teamSwatch(name) {
+  const info = teamInfo(name);
+  if (!info || !info.color) return '';
+  return `<span class="tsw" style="--t1:${esc(info.color)};--t2:${esc(info.color2 || info.color)}" aria-hidden="true"></span>`;
+}
+/** 詳細頁：正式全名和資料上的隊名不同時，加在下方 */
+function teamFull(name) {
+  const info = teamInfo(name);
+  return info && info.full && info.full !== name ? `<span class="tfull">${esc(info.full)}</span>` : '';
+}
 function fmtStamp(s) { // 2026-11-01T14:03:22 → 11/01 14:03
   if (!s) return '';
   const m = s.match(/^(\d{4})-(\d{2})-(\d{2})T(\d{2}:\d{2})/);
@@ -904,6 +940,7 @@ async function afterCode() {
     S.leagues = r.leagues;
     S.serverRefresh = r.refreshSec;
     applyColors(r.theme);
+    setTeams(r.teams);
     const saved = store.get(LS.hidden);
     S.hidden = new Set(saved ? JSON.parse(saved) : r.leagues.filter((l) => !l.enabled).map((l) => l.id));
     const mine = store.get(LS.refresh);
@@ -972,6 +1009,7 @@ async function checkUpdate(force) {
   try {
     const r = await api('version');
     applyColors(r.theme);
+    if (setTeams(r.teams) && !force) renderAll();
     if (r.refreshSec !== S.serverRefresh) S.serverRefresh = r.refreshSec;
     if (force || !shown || r.version.version !== shown.version) {
       await loadMonth({ quiet: true });
@@ -1195,9 +1233,9 @@ function gameCard(g) {
       ${g.note ? `<span>${esc(g.note)}</span>` : ''}
     </div>
     <div class="teams">
-      <div>${esc(g.away)}<small>客隊</small></div>
+      <div>${teamSwatch(g.away)}${esc(g.away)}<small>客隊</small></div>
       <div class="vs">VS</div>
-      <div class="home">${esc(g.home)}<small>主隊</small></div>
+      <div class="home">${esc(g.home)}${teamSwatch(g.home)}<small>主隊</small></div>
     </div>
     ${statusButtons(g.id, st)}
     ${(p.want.length || p.ticket.length || p.busy.length) ? `<div class="who">${whoLine('ticket')}${whoLine('want')}${whoLine('busy')}</div>` : ''}
@@ -1359,7 +1397,7 @@ function renderGame({ game: g, people: p, comments }) {
       <div class="when">${esc(lg.name)}　${d.getMonth() + 1}月${d.getDate()}日（${WD[d.getDay()]}）
         ${g.time ? `<span class="tm">${esc(g.time)}</span>` : '時間未定'}　${esc(g.venue || '')}</div>
       <div class="teams">
-        <div>${esc(g.away)}<small>客隊</small></div><div class="vs">VS</div><div class="home">${esc(g.home)}<small>主隊</small></div>
+        <div>${teamSwatch(g.away)}${esc(g.away)}${teamFull(g.away)}<small>客隊</small></div><div class="vs">VS</div><div class="home">${esc(g.home)}${teamSwatch(g.home)}${teamFull(g.home)}<small>主隊</small></div>
       </div>
       ${g.note ? `<div class="when">${esc(g.note)}</div>` : ''}
       ${gameNo(g.id) ? `<div class="game-no">場次編號 <b>${esc(gameNo(g.id))}</b></div>` : ''}
@@ -1469,7 +1507,16 @@ const mock = (() => {
                 ['富邦悍將', '新莊'], ['味全龍', '天母'], ['台鋼雄鷹', '澄清湖']];
   const vb = [['示範排球A', 'A館'], ['示範排球B', 'B館'], ['示範排球C', 'C館'], ['示範排球D', 'D館']];
   const bb = [['示範籃球A', 'A館'], ['示範籃球B', 'B館'], ['示範籃球C', 'C館'], ['示範籃球D', 'D館']];
-  const awb = [['中職白隊', '天母'], ['中職紅隊', '新莊'], ['示範日本隊', '天母'], ['示範韓國隊', '新莊']];
+  const awb = [['大學明星', '嘉義市'], ['日本社會人', '亞太主'], ['台灣海洋', '亞太主'],
+               ['台灣山林', '嘉義市'], ['日職聯隊', '亞太主'], ['韓職聯隊', '亞太主']];
+  const teams = [
+    { team: '大學明星', short: '大學', color: '#2F2F7B', color2: '#BB3C58', full: '大專體總大學明星隊', league: 'AWB', aliases: [] },
+    { team: '台灣海洋', short: '海洋', color: '#173666', color2: '', full: '台灣海洋', league: 'AWB', aliases: [] },
+    { team: '台灣山林', short: '山林', color: '#03544E', color2: '', full: '台灣山林', league: 'AWB', aliases: [] },
+    { team: '韓職聯隊', short: '韓職', color: '#1B2B52', color2: '', full: '韓國職棒', league: 'AWB', aliases: [] },
+    { team: '日職聯隊', short: '日職', color: '#1586C9', color2: '#C9171D', full: 'NPB日本職棒', league: 'AWB', aliases: [] },
+    { team: '日本社會人', short: '日本', color: '#005BAC', color2: '#E8371A', full: '日本社會人隊', league: 'AWB', aliases: [] },
+  ];
   const base = new Date(); base.setDate(1);
   let n = 0;
   for (let off = -1; off <= 2; off++) {
@@ -1489,7 +1536,7 @@ const mock = (() => {
       }
       if (month >= 11 && wd !== 1) {
         for (let k = 0; k < 2; k++) {
-          const a = awb[(day + k) % 4], h = awb[(day + k + 2) % 4];
+          const a = awb[(day + k * 2) % 6], h = awb[(day + k * 2 + 3) % 6];
           db.games.push({ id: `AWB-${d.getFullYear()}-P-${++n}`, league: 'AWB', date: ds, time: k ? '18:00' : '12:00', away: a[0], home: h[0], venue: h[1], note: '' });
         }
       }
@@ -1533,8 +1580,8 @@ const mock = (() => {
     const v = () => clone(db.ver);
     switch (req.action) {
       case 'verifyCode': return { ok: true };
-      case 'init': return { ok: true, leagues: clone(db.leagues), version: v(), refreshSec: 30, theme: { light: {}, dark: {} } };
-      case 'version': return { ok: true, version: v(), refreshSec: 30, theme: { light: {}, dark: {} } };
+      case 'init': return { ok: true, leagues: clone(db.leagues), version: v(), refreshSec: 30, theme: { light: {}, dark: {} }, teams: clone(teams) };
+      case 'version': return { ok: true, version: v(), refreshSec: 30, theme: { light: {}, dark: {} }, teams: clone(teams) };
       case 'checkName': {
         if (!name) return fail('NAME_EMPTY', '請輸入名稱');
         const u = find(name); return { ok: true, exists: !!u, name: u ? u.name : name, hasPin: !!(u && u.pin) };
