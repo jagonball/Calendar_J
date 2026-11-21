@@ -214,24 +214,39 @@ button { cursor: pointer; }
 .cell.sel { background: var(--surface); box-shadow: inset 0 0 0 2px var(--accent); }
 .mk {
   display: flex; align-items: center; gap: 3px;
-  height: 14px;
+  flex-wrap: wrap; min-height: 14px; row-gap: 1px;
   border-left: 3px solid var(--lc);
   padding-left: 3px;
   font-size: 10.5px; line-height: 14px;
   color: var(--muted);
   min-width: 0;
 }
-.mk .t { flex: 1; min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
-.mk .s { flex: none; font-size: 10px; font-weight: 700; }
-.mk .s.want { color: var(--want); }
-.mk .s.ticket { color: var(--ticket); }
-.mk .s.busy { color: var(--busy); }
+.mk .t { flex: 1 1 3.4em; min-width: 3.4em; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+/* 狀態標記群組：空間不夠時整組換到下一行、靠右 */
+.mk .b { flex: none; display: inline-flex; gap: 2px; margin-left: auto; }
+.mk .s, .mk .o {
+  flex: none; display: inline-flex; align-items: center; justify-content: center;
+  height: 12px; border-radius: 3px; font-size: 9.5px; font-weight: 700; line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+/* 自己的選擇：實心底色 */
+.mk .s { min-width: 12px; padding: 0 1px; color: var(--bg); }
+.mk .s.want { background: var(--want); }
+.mk .s.ticket { background: var(--ticket); }
+.mk .s.busy { background: var(--busy); }
+/* 其他人的選擇：淡色底＋人數 */
+.mk .o { padding: 0 2px; gap: 1px; }
+.mk .o.want { background: var(--want-bg); color: var(--want); }
+.mk .o.ticket { background: var(--ticket-bg); color: var(--ticket); }
+.mk .o.busy { background: var(--busy-bg); color: var(--busy); }
 .mk.mine-ticket { background: var(--ticket-bg); color: var(--ink); }
 .more, .ev-mk { font-size: 10.5px; color: var(--muted); padding-left: 3px; line-height: 13px; }
 .ev-mk { border-left: 3px dotted var(--ink); padding-left: 3px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: var(--ink); }
 @media (max-width: 639px) {
-  .mk .t { visibility: hidden; }
-  .mk { justify-content: flex-end; }
+  .mk .t { display: none; }
+  .mk { justify-content: flex-end; gap: 2px; }
+  .mk .b { flex-wrap: wrap; justify-content: flex-end; row-gap: 1px; max-width: 100%; }
+  .mk .o.busy { display: none; }   /* 手機格子太窄，只顯示其他人的「已買票」「想看」 */
   .ev-mk .t { display: none; }
 }
 .legend {
@@ -240,6 +255,13 @@ button { cursor: pointer; }
   padding: 8px 2px 0;
 }
 .legend b { font-weight: 700; margin-right: 3px; }
+.legend .lg-mine, .legend .lg-other {
+  display: inline-flex; align-items: center; justify-content: center;
+  min-width: 14px; height: 14px; padding: 0 2px; border-radius: 3px;
+  font-size: 10px; font-weight: 700; margin-right: 4px; vertical-align: 1px;
+}
+.legend .lg-mine { background: var(--ticket); color: var(--bg); }
+.legend .lg-other { background: var(--ticket-bg); color: var(--ticket); }
 .legend .want { color: var(--want); }
 .legend .ticket { color: var(--ticket); }
 .legend .busy { color: var(--busy); }
@@ -311,8 +333,16 @@ button { cursor: pointer; }
 .st[data-f="ticket"][aria-pressed="true"] { background: var(--ticket-bg); border-color: var(--ticket); color: var(--ticket); }
 .st[data-f="busy"][aria-pressed="true"] { background: var(--busy-bg); border-color: var(--busy); color: var(--busy); }
 .st:disabled { opacity: .5; cursor: progress; }
-.who { font-size: 12.5px; color: var(--muted); margin-top: 8px; display: grid; gap: 2px; }
-.who b { color: var(--ink); font-weight: 600; }
+.who { font-size: 13px; margin-top: 8px; display: grid; gap: 4px; }
+.who > div { border-radius: 6px; padding: 4px 9px; color: var(--ink); line-height: 1.5; }
+.who b { font-weight: 700; margin-right: 6px; }
+.who .me { font-weight: 700; text-decoration: underline; text-underline-offset: 2px; }
+.who .w-ticket { background: var(--ticket-bg); }
+.who .w-ticket b { color: var(--ticket); }
+.who .w-want { background: var(--want-bg); }
+.who .w-want b { color: var(--want); }
+.who .w-busy { background: var(--busy-bg); }
+.who .w-busy b { color: var(--busy); }
 .open-detail {
   margin-top: 8px; padding: 0;
   background: none; border: 0;
@@ -360,9 +390,13 @@ button { cursor: pointer; }
 @media (min-width: 560px) { .people { grid-template-columns: repeat(3, 1fr); } }
 .people > div { background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; }
 .people h4 { margin: 0 0 4px; font-size: 13px; }
+.people .want { background: var(--want-bg); border-color: transparent; }
+.people .ticket { background: var(--ticket-bg); border-color: transparent; }
+.people .busy { background: var(--busy-bg); border-color: transparent; }
 .people .want h4 { color: var(--want); }
 .people .ticket h4 { color: var(--ticket); }
 .people .busy h4 { color: var(--busy); }
+.people .me { font-weight: 700; text-decoration: underline; text-underline-offset: 2px; }
 .people p { margin: 0; font-size: 14px; }
 .marks { list-style: none; padding: 0; margin: 0; display: grid; gap: 6px; }
 .marks li {
@@ -515,9 +549,11 @@ select {
     <div class="weekdays"><div>日</div><div>一</div><div>二</div><div>三</div><div>四</div><div>五</div><div>六</div></div>
     <div class="grid" id="grid"></div>
     <div class="legend">
-      <span><b class="want">★</b>我想看</span>
-      <span><b class="ticket">✓</b>我已買票</span>
-      <span><b class="busy">✕</b>我無法到場</span>
+      <span><b class="want">★</b>想看</span>
+      <span><b class="ticket">✓</b>已買票</span>
+      <span><b class="busy">✕</b>無法到場</span>
+      <span><span class="lg-mine">✓</span>實心是我的選擇</span>
+      <span><span class="lg-other">✓2</span>淡色加人數是其他人</span>
     </div>
   </section>
   <section class="agenda" id="agenda" aria-live="polite"></section>
@@ -1159,6 +1195,17 @@ function myStatus(gid) {
   return { want: p.want.includes(S.me), ticket: p.ticket.includes(S.me), busy: p.busy.includes(S.me) };
 }
 function statusKey(st) { return st.ticket ? 'ticket' : st.busy ? 'busy' : st.want ? 'want' : ''; }
+/** 其他人（不含自己）各狀態的人數；同一人「想看」又「已買票」時只算已買票 */
+function othersOf(gid) {
+  const p = S.data.people[gid];
+  const o = { want: 0, ticket: 0, busy: 0 };
+  if (!p) return o;
+  const ticket = new Set(p.ticket.filter((n) => n !== S.me));
+  o.ticket = ticket.size;
+  o.want = p.want.filter((n) => n !== S.me && !ticket.has(n)).length;
+  o.busy = p.busy.filter((n) => n !== S.me).length;
+  return o;
+}
 
 /* ════════════ 畫面：月曆 ════════════ */
 function renderCalendar() {
@@ -1188,14 +1235,18 @@ function renderCalendar() {
     const evs = inMonth ? evByDate[ds] || [] : [];
     const cls = ['cell', inMonth ? '' : 'out', ds === todayStr ? 'today' : '', ds === S.sel ? 'sel' : ''].join(' ');
     const shown = games.slice(0, 3);
-    const label = `${d.getMonth() + 1}月${d.getDate()}日，${games.length} 場比賽${evs.length ? `，${evs.length} 個事項` : ''}`;
+    const othersTicket = games.reduce((n, g) => n + othersOf(g.id).ticket, 0);
+    const label = `${d.getMonth() + 1}月${d.getDate()}日，${games.length} 場比賽${othersTicket ? `，其他人共 ${othersTicket} 張票` : ''}${evs.length ? `，${evs.length} 個事項` : ''}`;
     html += `<button class="${cls}" data-date="${ds}" aria-label="${label}" ${inMonth ? '' : 'tabindex="-1"'}>
       <span class="d">${d.getDate()}</span>
       ${shown.map((g) => {
         const k = statusKey(myStatus(g.id));
+        const o = othersOf(g.id);
+        const others = ['ticket', 'want', 'busy'].filter((f) => o[f])
+          .map((f) => `<span class="o ${f}" title="其他人${LABEL[f]} ${o[f]} 人">${GLYPH[f]}${o[f]}</span>`).join('');
         return `<span class="mk ${k === 'ticket' ? 'mine-ticket' : ''}" style="${lcStyle(league(g.league))}">
           <span class="t">${esc(shortTeam(g.away))} ${esc(shortTeam(g.home))}</span>
-          ${k ? `<span class="s ${k}">${GLYPH[k]}</span>` : ''}</span>`;
+          ${others || k ? `<span class="b">${others}${k ? `<span class="s ${k}" title="我${LABEL[k]}">${GLYPH[k]}</span>` : ''}</span>` : ''}</span>`;
       }).join('')}
       ${games.length > 3 ? `<span class="more">+${games.length - 3} 場</span>` : ''}
       ${evs.length ? `<span class="ev-mk">${evs.length > 1 ? evs.length + ' 事項' : `<span class="t">${esc(evs[0].title)}</span>`}</span>` : ''}
@@ -1245,7 +1296,8 @@ function gameCard(g) {
   const p = S.data.people[g.id] || { want: [], ticket: [], busy: [] };
   const lg = league(g.league);
   const cc = S.data.commentCounts[g.id] || 0;
-  const whoLine = (k) => p[k].length ? `<div><b>${LABEL[k]}</b>　${p[k].map(esc).join('、')}</div>` : '';
+  const names = (list) => list.map((n) => n === S.me ? `<span class="me">${esc(n)}</span>` : esc(n)).join('、');
+  const whoLine = (k) => p[k].length ? `<div class="w-${k}"><b>${GLYPH[k]} ${LABEL[k]}</b>${names(p[k])}</div>` : '';
   return `<article class="game ${st.ticket ? 'has-ticket' : ''}" style="${lcStyle(lg)}">
     <div class="meta">
       <span class="lg">${esc(lg.name)}</span>
@@ -1410,7 +1462,7 @@ function renderGame({ game: g, people: p, comments }) {
   const d = parseYmd(g.date);
   const st = myStatus(g.id);
   const marks = comments.filter((c) => c.tagAt).sort((a, b) => (a.tagAt < b.tagAt ? -1 : 1));
-  const list = (k) => p[k].length ? p[k].map(esc).join('、') : '<span style="color:var(--muted)">還沒有人</span>';
+  const list = (k) => p[k].length ? p[k].map((n) => n === S.me ? `<span class="me">${esc(n)}</span>` : esc(n)).join('、') : '<span style="color:var(--muted)">還沒有人</span>';
   const draft = $('cText')?.value || '';
   const draftTag = $('cTag')?.value || '';
   $('gameInner').innerHTML = `
